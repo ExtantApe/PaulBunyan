@@ -1,0 +1,27 @@
+# Paul Bunyan: chop a natural tree with an axe and it falls over.
+# Sneak to chop a single log the normal way.
+
+# What fallen logs turn into when they land: "blocks" to chop up where they lie, or "items".
+land-as: blocks
+
+# Trees with more logs or leaves than this break like vanilla instead of falling.
+max-logs: 250
+max-leaves: 3000
+
+# Plant a sapling where the tree stood, free, if one can grow there.
+replant: true
+
+# Huge crimson and warped fungi fall too.
+nether-fungi: true
+
+# Creative players chop one log like vanilla unless this is true.
+creative-fells: false
+
+# How long a tree takes to fall, in ticks (20 a second). 0 skips the animation.
+fall-ticks: 24
+
+# Above this many logs and leaves together, leaves vanish at once instead of falling with the tree.
+max-animated-blocks: 600
+
+# Worlds where trees never fall, by folder name.
+disabled-worlds: []

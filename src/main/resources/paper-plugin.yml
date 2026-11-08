@@ -1,0 +1,21 @@
+name: PaulBunyan
+version: '${version}'
+main: com.extantape.paulbunyan.PaulBunyan
+api-version: '26.1'
+description: Chop a natural tree with an axe and it falls over, then a sapling is replanted.
+website: https://github.com/ExtantApe/PaulBunyan
+dependencies:
+  server:
+    GriefPrevention:
+      load: BEFORE
+      required: false
+    CoreProtect:
+      load: BEFORE
+      required: false
+permissions:
+  paulbunyan.fell:
+    description: Fell trees with an axe.
+    default: true
+  paulbunyan.admin:
+    description: Use /paulbunyan reload and check.
+    default: op
