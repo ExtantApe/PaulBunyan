@@ -34,3 +34,9 @@ brief's suggestion, it says so.
 - Where there's a choice, do it well for players: clear messages, satisfying feedback, sensible defaults.
 - Kids come first on the servers. Here that means a fall never hurts anyone: falling logs do no damage,
   nobody on or under a tree takes fall damage, and logs never land inside a player.
+
+## 2026-11-07, later
+
+- **Go public:** the owner approved making the repo and its v0.1.0 GitHub Release public, after the
+  pre-public audit and with the leak check in CI. Modrinth, Hangar and Spigot wait for the owner's own code
+  review.
