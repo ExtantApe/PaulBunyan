@@ -2,7 +2,7 @@
 
 A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tips over, the logs land on the ground, and a sapling goes back in where it stood.
 
-**Status:** pre-release. STATUS_LINE
+**Status:** pre-release. It has passed a bot test suite on throwaway Paper 26.1.2, 26.2 and 26.3 servers, and 25 unit tests. It hasn't been seen in a real game client yet, so how the fall looks, sounds and feels, and whether older clients connected through ViaVersion show it properly, are untested. See [Testing](#testing).
 
 - Requires Paper 26.1 or newer, on Java 25. Tested on 26.1.2, 26.2 and 26.3. Java Edition only.
 - Replaces tree-felling plugins such as TreeAssist and LumberJack.
@@ -12,7 +12,7 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 - Chop any log of a natural tree with an axe, and the whole tree tips over, away from you, in about a second. It's drawn with block displays, so players need nothing installed. It cracks as it goes and thuds when it lands, with a puff of wood dust on each log.
 - The logs land on the ground as logs, ready to chop again. Set `land-as: items` to drop them as items instead.
 - The leaves fall with the tree, and drop what they would have dropped if they'd decayed: saplings, sticks and apples.
-- A sapling is planted where the tree stood, free, if one can grow there. Dark and pale oak get four saplings in a square, or none if any of the four spots won't take one, because a single sapling never grows. Spruce and jungle get four where the trunk was 2x2, otherwise one. Mangroves get a propagule on the nearest mud. Huge fungi get a fungus, only on their own nylium.
+- A sapling is planted where the tree stood, free, if one can grow there. Dark and pale oak get four saplings in a square, or none if any of the four spots won't take one, because a single sapling never grows. Spruce and jungle get four where the trunk was 2x2, otherwise one. Mangroves get a propagule on the nearest mud or dirt within ten blocks of the trunk, since their roots cover the ground right around it. Huge fungi get a fungus, only on their own nylium.
 - Sneak to chop one log the normal way.
 - When a real tree won't fall, the action bar says why: it touches a build, it's too big, part of it is in someone's claim, or your axe is too worn. Chopping a log cabin or a log fence says nothing, because those aren't trees.
 - The axe wears one point per log, with Unbreaking applied as usual. If the tree has more logs than the axe has uses left, it doesn't fall, and you get one log and a message.
@@ -102,7 +102,35 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 
 ## Testing
 
-TESTING_SECTION
+`./gradlew build` runs the unit tests: the tree scanner, the fall plan and the landing rules, against a made-up world.
+
+`test/suite.mjs` builds a throwaway Paper server on a flat world on 127.0.0.1:25612, grows trees with `/place feature` (the way world generation does), and drives it with [mineflayer](https://github.com/PrismarineJS/mineflayer) bots. It checks:
+
+- every species, including 2x2 spruce, pine and jungle, branching acacia, dark and pale oak, cherry and azalea, plus mangroves in mud and water, and both huge fungi
+- that every log ends up somewhere: as blocks, as items or in a bot's inventory, adding up to the tree's log count
+- log cabins, log fences, placed logs with placed leaves, and a house around a real tree (none of them fall)
+- a torch on a trunk, two trees sharing leaves, and a stray placed log
+- landings on torches, slabs, signs, flowers, crops, chests (contents checked), water, lava, a cliff and the void, in both modes
+- GriefPrevention claims, a bot under the fall, a bot on top of the tree, and a boat
+- replanting on dirt, grass, mud, moss and stone, a blocked spot, and 2x2 trees with one bad corner
+- a chunk unloading mid-fall, a normal restart, and `kill -9` before and after a save
+- the size cap, ten bots felling at once (average tick under 50 ms), CoreProtect lookups, creative mode, sneaking and axe wear
+
+```sh
+./gradlew clean build
+cd test && npm install && cd ..
+node test/fetch-jars.mjs /tmp/pb-jars
+PB_TEST_WORK=/tmp/pb-work PB_TEST_JARS=/tmp/pb-jars PB_TEST_JAVA=<path to Java 25> node test/suite.mjs 26.3
+```
+
+`fetch-jars.mjs` downloads Paper, ViaVersion, ViaBackwards, GriefPrevention and CoreProtect and checks each against the hash its publisher lists. The suite writes `eula=true` into the server it creates, which accepts Mojang's EULA for it, so only run it if you accept that. It deletes the server when it's done.
+
+What the bots can't show:
+
+- The bots speak 1.21.11 through ViaVersion and ViaBackwards. They dig, place, pick up and take damage like players, but they draw nothing.
+- On 26.3 a 1.21.11 bot is kicked if it sends movement, so there the bots hover where `/tp` puts them. The checks that need a bot to fall or place blocks (a bot on top of the tree, placed logs with placed leaves, and a stray placed log) run on 26.1.2 and 26.2 only.
+- CoreProtect 24.1 refuses to start on 26.3, so block logging was tested on 26.1.2 and 26.2 only.
+- "Player-placed leaves" are set from the console with `persistent=true`, which is exactly what the game stores when a player places leaves.
 
 ## License
 

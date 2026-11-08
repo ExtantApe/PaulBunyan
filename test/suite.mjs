@@ -95,6 +95,20 @@ function account(p, name, bots = [me]) {
   return { blocks, items, held, total: blocks + items + held }
 }
 const waitFall = (ticks = 24) => sleep(ticks * 50 + 2500)
+/**
+ * The account once the bots' view has caught up: picked-up items and merged stacks can briefly show
+ * twice, so read until two readings a second apart agree. Real duplicates would persist.
+ */
+async function settledAccount(p, name, bots = [me]) {
+  let last = JSON.stringify(account(p, name, bots))
+  for (let i = 0; i < 10; i++) {
+    await sleep(1000)
+    const now = JSON.stringify(account(p, name, bots))
+    if (now === last) return JSON.parse(now)
+    last = now
+  }
+  return JSON.parse(last)
+}
 async function displays() { return s.count('@e[type=block_display]') }
 
 /** Grows a tree with /place feature and checks the plugin agrees it's natural. */
@@ -116,7 +130,7 @@ async function fellAndAccount(p, base, log, t, label, { ticks = 24, bots = [me] 
   const origin = blocksNear(me, log, p.c, 44).map(v => v.toString())
   await chop(me, base)
   await waitFall(ticks)
-  const a = account(p, log, bots)
+  const a = await settledAccount(p, log, bots)
   check(`${label}: every log is accounted for (${t.logs})`, a.total === t.logs, JSON.stringify(a))
   const still = blocksNear(me, log, p.c, 44).map(v => v.toString()).filter(v => origin.includes(v))
   check(`${label}: nothing is left standing`, still.length === 0, still.join(' '))
@@ -165,10 +179,10 @@ if (want('mangrove')) {
     await fellAndAccount(p, g.base, 'mangrove_log', g.t, feature)
     const rootsAfter = blocksNear(me, 'mangrove_roots', p.c, 10).length + blocksNear(me, 'muddy_mangrove_roots', p.c, 10).length
     check(`${feature}: the roots stay where they are`, rootsAfter === roots, `${roots} before, ${rootsAfter} after`)
-    const prop = blocksNear(me, 'mangrove_propagule', p.c, 9)
+    const prop = blocksNear(me, 'mangrove_propagule', p.c, 16)
     const sensible = prop.length === 1 && ['mud', 'muddy_mangrove_roots', 'dirt', 'grass_block', 'moss_block', 'clay'].includes(me.blockAt(prop[0].offset(0, -1, 0))?.name)
     check(`${feature}: one propagule replanted near the trunk, on mud`, sensible,
-      prop.map(v => v + ' on ' + me.blockAt(v.offset(0, -1, 0))?.name + ', ' + v.distanceTo(p.c).toFixed(1) + ' from the trunk').join('; ') || 'none within 9')
+      prop.map(v => v + ' on ' + me.blockAt(v.offset(0, -1, 0))?.name + ', ' + v.distanceTo(p.c).toFixed(1) + ' from the trunk').join('; ') || 'none within 16')
     await release(p)
   }
 }
@@ -244,6 +258,8 @@ if (want('notnatural')) {
       await s.ask(`fill ${p.X + a[0]} ${Y} ${p.Z + a[1]} ${p.X + b[0]} ${Y} ${p.Z + b[1]} minecraft:oak_planks`, 200)
     // a low roof the trunk passes through
     await s.ask(`fill ${p.X - 3} ${Y + 1} ${p.Z - 3} ${p.X + 3} ${Y + 1} ${p.Z + 3} minecraft:oak_planks replace minecraft:air`, 300)
+    // and right against the trunk on every side, even where a short oak's leaves hang that low
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) await s.ask(`setblock ${p.X + dx} ${Y + 1} ${p.Z + dz} minecraft:oak_planks`, 100)
     const t = await s.treeCheck(p.X, Y, p.Z)
     check('house built around a real tree: left alone', !t.falls, JSON.stringify(t))
     await s.ask(`tp Chopper ${p.X - 1.5} ${Y} ${p.Z + 0.5} -90 10`, 500)
@@ -316,7 +332,8 @@ const LANDINGS = [
   ['crops', x => `setblock ${x} ${Y - 1} ZZ minecraft:farmland\nsetblock ${x} ${Y} ZZ minecraft:wheat[age=7]`, 'wheat'],
   ['chests', x => `setblock ${x} ${Y} ZZ minecraft:chest{Items:[{Slot:0b,id:"minecraft:diamond",count:3}]}`, 'chest'],
   ['water', x => `fill ${x} ${Y - 2} ZZ-1 ${x} ${Y} ZZ+1 minecraft:water`, null],
-  ['lava', x => `fill ${x} ${Y - 2} ZZ-1 ${x} ${Y} ZZ+1 minecraft:lava`, null],
+  // sunk to ground level, so it can't flow back over the grass to the stump
+  ['lava', x => `fill ${x} ${Y - 2} ZZ-1 ${x} ${Y - 1} ZZ+1 minecraft:lava`, null],
   ['a cliff', x => `fill ${x} ${Y - 20} ZZ-1 ${x} ${Y - 1} ZZ+1 minecraft:air`, null],
   ['the void', x => `fill ${x} -64 ZZ-1 ${x} ${Y - 1} ZZ+1 minecraft:air`, null],
 ]
@@ -325,8 +342,7 @@ async function landingCase(name, make, keep, itemsMode) {
   const g = await grow(p, 'jungle_tree', 'jungle_log')
   if (!g.ok || !g.t.falls) return check(`${name}: tree grew`, false, g.why ?? JSON.stringify(g.t))
   // from two blocks out: an obstacle right against the trunk would make it a tree touching a build
-  // lava three out: the chopped log's own vanilla drop pops out with a random push and can reach two
-  for (let x = p.X + (name === 'lava' ? 3 : 2); x <= p.X + 16; x++) for (const line of make(x).replaceAll('ZZ+1', p.Z + 1).replaceAll('ZZ-1', p.Z - 1).replaceAll('ZZ', p.Z).split('\n')) await s.ask(line, 60)
+  for (let x = p.X + 2; x <= p.X + 16; x++) for (const line of make(x).replaceAll('ZZ+1', p.Z + 1).replaceAll('ZZ-1', p.Z - 1).replaceAll('ZZ', p.Z).split('\n')) await s.ask(line, 60)
   await sleep(800)
   const kept = keep ? blocksNear(me, keep, p.c, 30).length : 0
   await axe()
@@ -383,15 +399,20 @@ if (want('protection')) {
   check('a player without rights can\'t fell a tree in a claim', insideBefore === inside.t.logs && blocksNear(me, 'oak_log', insideAt, 8).length === insideBefore,
     `${insideBefore} logs before, ${blocksNear(me, 'oak_log', insideAt, 8).length} after`)
   // a tree outside the claim, falling east into it
-  const outside = await grow(p, 'jungle_tree', 'jungle_log', { at: [p.X - 2, Y, p.Z] })
-  await s.ask(`tp Chopper ${p.X - 4 + 0.5} ${Y} ${p.Z + 0.5} -90 10`, 600)
+  // four blocks from the claim's west edge (x = X+3): its leaves stay outside (a tree with any part in
+  // the claim doesn't fall at all), but its trunk lands across the edge
+  const outside = await grow(p, 'jungle_tree', 'jungle_log', { at: [p.X - 1, Y, p.Z] })
+  await s.ask(`tp Chopper ${p.X - 3 + 0.5} ${Y} ${p.Z + 0.5} -90 10`, 600)
   await s.ask('clear Chopper', 200); await axe()
   check('the outside tree falls', outside.ok && outside.t.falls)
   await chop(me, outside.base); await waitFall()
   const inClaim = blocksNear(me, 'jungle_log', p.c, 44).filter(v => v.x >= p.X + 3 && v.x <= p.X + 13 && v.z >= p.Z - 5 && v.z <= p.Z + 5)
   check('a fall never lands blocks in a claim the player can\'t build in', inClaim.length === 0, inClaim.join(' '))
-  const a = account({ c: new Vec3(p.X - 2, Y, p.Z) }, 'jungle_log')
-  check('logs that would land in the claim go to the player', a.total === outside.t.logs && a.held > 1, JSON.stringify(a))
+  const a = await settledAccount({ c: new Vec3(p.X - 1, Y, p.Z) }, 'jungle_log')
+  // the log h above the stump lands at x = X+h, so those from h = 3 up are in the claim
+  const intoClaim = Math.max(0, (outside.t?.logs ?? 0) - 3)
+  check(`logs that would land in the claim go to the player (${intoClaim})`, a.total === outside.t.logs && a.held >= intoClaim && intoClaim > 0,
+    JSON.stringify(a) + ' of ' + outside.t?.logs)
   await quit(owner)
   await release(p)
 }
@@ -484,7 +505,7 @@ async function midFall(label, interrupt) {
   await s.ask(`tp Chopper ${p.X - 1.5} ${Y} ${p.Z + 0.5} -90 10`, 800)
   await s.ask(`forceload add ${p.X - 24} ${p.Z - 24} ${p.X + 40} ${p.Z + 24}`, 2000)
   await sleep(10000) // past the end of the fall either way
-  const a = account(p, 'jungle_log')
+  const a = await settledAccount(p, 'jungle_log')
   check(`${label}: no log lost or doubled (${g.t.logs})`, a.total === g.t.logs, JSON.stringify(a))
   check(`${label}: no block displays left`, (await displays()) === 0)
   await config()

@@ -448,16 +448,16 @@ public final class Feller {
 
     /**
      * A mangrove's trunk stands on its roots, where a propagule can't go. The nearest spot to the trunk
-     * where one can, within six blocks across and six down, is used instead.
+     * where one can, within ten blocks across and twelve down (a tall mangrove stands high on its roots), is used instead.
      */
     private static List<List<Pos>> mangroveSpots(World world, List<Pos> base, BlockData propagule) {
         List<Pos> spots = new ArrayList<>();
         Pos c = base.getFirst();
-        for (int r = 0; r <= 6; r++)
+        for (int r = 0; r <= 10; r++)
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
-                    for (int dy = 1; dy >= -6; dy--) spots.add(c.add(dx, dy, dz));
+                    for (int dy = 1; dy >= -12; dy--) spots.add(c.add(dx, dy, dz));
                 }
         List<List<Pos>> out = new ArrayList<>();
         for (Pos p : spots) out.add(List.of(p));
