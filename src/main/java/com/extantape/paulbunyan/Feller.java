@@ -28,7 +28,10 @@ import java.util.UUID;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import net.kyori.adventure.key.Key;
+import net.kyori.adventure.sound.Sound;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.Axis;
@@ -134,7 +137,7 @@ public final class Feller {
         return max - damage > logs;
     }
 
-    public enum Outcome { FELLS, VANILLA, AXE_TOO_WORN, PROTECTED }
+    public enum Outcome { FELLS, VANILLA, AXE_TOO_WORN, PROTECTED, TOUCHES_BUILD, TOO_BIG }
 
     /**
      * Called while a player's break of {@code chopped} is being allowed. Decides now, while the tree is
@@ -142,7 +145,13 @@ public final class Feller {
      */
     public Outcome chop(Player player, Block chopped, ItemStack axe, boolean wear) {
         Scan scan = scan(chopped, player.getUniqueId());
-        if (!scan.fells()) return Outcome.VANILLA;
+        if (!scan.fells()) {
+            return switch (scan.skip()) {
+                case TOUCHES_BUILD -> Outcome.TOUCHES_BUILD;
+                case TOO_BIG -> Outcome.TOO_BIG;
+                default -> Outcome.VANILLA;
+            };
+        }
         Tree tree = scan.tree();
         World world = chopped.getWorld();
         if (wear && !axeHolds(axe, tree.logs().size())) return Outcome.AXE_TOO_WORN;
@@ -225,6 +234,9 @@ public final class Feller {
             b.setType(Material.AIR, true);
         }
         spareFallDamage(world, tree);
+        Pos stump = tree.base().getFirst();
+        world.playSound(Sound.sound(Key.key("block.wood.break"), Sound.Source.BLOCK, 1.2f, 0.55f), stump.x() + 0.5, stump.y() + 1, stump.z() + 0.5);
+        world.playSound(Sound.sound(Key.key("block.grass.break"), Sound.Source.BLOCK, 0.8f, 0.7f), stump.x() + 0.5, stump.y() + 3, stump.z() + 0.5);
 
         Active a = new Active(entry, world, plan, animation, leafDrops);
         active.put(id, a);
@@ -322,6 +334,8 @@ public final class Feller {
         List<Journal.Landed> blocks = new ArrayList<>(e.blocks());
         List<ItemStack> toPlayer = new ArrayList<>();
         Location stump = stump(world, e);
+        List<Pos> landedAt = new ArrayList<>();
+        List<BlockData> landedData = new ArrayList<>();
         for (Journal.Log l : order) {
             if (onlyMissing != null && !onlyMissing.contains(l.origin())) continue;
             world.getChunkAt(l.target().x() >> 4, l.target().z() >> 4); // loads it if it was unloaded mid-fall
@@ -330,15 +344,22 @@ public final class Feller {
             ItemStack item = new ItemStack(data.getMaterial());
             switch (r.outcome()) {
                 case BLOCK -> {
+                    landedAt.add(r.at());
+                    landedData.add(data);
                     Block b = view.block(r.at());
                     b.setBlockData(data, true);
                     blockLog.placed(who, b.getLocation(), data);
                     blocks.add(new Journal.Landed(l.origin(), r.at(), data.getAsString()));
                 }
-                case ITEM -> world.dropItem(center(world, r.at()), item, i -> i.setVelocity(new org.bukkit.util.Vector()));
+                case ITEM -> {
+                    landedAt.add(r.at());
+                    landedData.add(data);
+                    world.dropItem(center(world, r.at()), item, i -> i.setVelocity(new org.bukkit.util.Vector()));
+                }
                 case TO_PLAYER -> toPlayer.add(item);
             }
         }
+        feedback(world, landedAt, landedData);
         if (leafDrops != null) {
             for (LeafDrop d : leafDrops) {
                 if (d.items().isEmpty()) continue;
@@ -362,6 +383,20 @@ public final class Feller {
             plugin.getLogger().log(Level.WARNING, "Couldn't update the fall journal", ex);
         }
         return done;
+    }
+
+    /** A thud where the trunk lands, and wood dust on each landed log (the first 64). */
+    private static void feedback(World world, List<Pos> at, List<BlockData> data) {
+        if (at.isEmpty()) return;
+        double x = 0, y = 0, z = 0;
+        for (Pos p : at) { x += p.x(); y += p.y(); z += p.z(); }
+        int n = at.size();
+        world.playSound(Sound.sound(Key.key("block.wood.place"), Sound.Source.BLOCK, 1.5f, 0.5f), x / n + 0.5, y / n + 0.5, z / n + 0.5);
+        world.playSound(Sound.sound(Key.key("entity.generic.big_fall"), Sound.Source.BLOCK, 1.0f, 0.6f), x / n + 0.5, y / n + 0.5, z / n + 0.5);
+        for (int i = 0; i < Math.min(64, n); i++) {
+            Pos p = at.get(i);
+            world.spawnParticle(Particle.BLOCK, p.x() + 0.5, p.y() + 0.2, p.z() + 0.5, 10, 0.4, 0.15, 0.4, 0, data.get(i));
+        }
     }
 
     private static Location stump(World world, Journal.Entry e) {
@@ -413,12 +448,12 @@ public final class Feller {
 
     /**
      * A mangrove's trunk stands on its roots, where a propagule can't go. The nearest spot to the trunk
-     * where one can, within three blocks across and six down, is used instead.
+     * where one can, within six blocks across and six down, is used instead.
      */
     private static List<List<Pos>> mangroveSpots(World world, List<Pos> base, BlockData propagule) {
         List<Pos> spots = new ArrayList<>();
         Pos c = base.getFirst();
-        for (int r = 0; r <= 3; r++)
+        for (int r = 0; r <= 6; r++)
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;

@@ -42,10 +42,20 @@ class TreeScannerTest {
     }
 
     @Test
+    void cabinWithPlanksIsNotATreeRatherThanATreeTouchingABuild() {
+        FakeWorld w = new FakeWorld();
+        for (int y = 65; y < 69; y++) w.log("SPRUCE_LOG", 0, y, 0).set(Kind.BUILD, "SPRUCE_PLANKS", 1, y, 0);
+        Scan s = scan(w, 0, 65, 0);
+        assertEquals(Scan.Reason.NO_NATURAL_LEAVES, s.skip(), "a cabin player gets no message; only real trees explain themselves");
+    }
+
+    @Test
     void treeTouchingABuildIsLeftAlone() {
         FakeWorld w = new FakeWorld().oak(0, 0, 5, "OAK_LOG", "OAK_LEAVES", false);
         w.set(Kind.BUILD, "OAK_PLANKS", 1, 66, 0);
-        assertEquals(Scan.Reason.TOUCHES_BUILD, scan(w, 0, 65, 0).skip());
+        Scan s = scan(w, 0, 65, 0);
+        assertEquals(Scan.Reason.TOUCHES_BUILD, s.skip());
+        assertEquals("oak_planks at 1,66,0", s.detail());
     }
 
     @Test

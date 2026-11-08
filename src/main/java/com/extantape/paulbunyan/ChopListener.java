@@ -61,6 +61,10 @@ public final class ChopListener implements Listener {
             player.sendActionBar(Component.text("Your axe is too worn to fell this whole tree.", NamedTextColor.YELLOW));
         } else if (outcome == Feller.Outcome.PROTECTED) {
             player.sendActionBar(Component.text("Part of this tree is in a claim you can't build in.", NamedTextColor.YELLOW));
+        } else if (outcome == Feller.Outcome.TOUCHES_BUILD) {
+            player.sendActionBar(Component.text("This tree touches a build, so it won't fall. Chopping it log by log.", NamedTextColor.YELLOW));
+        } else if (outcome == Feller.Outcome.TOO_BIG) {
+            player.sendActionBar(Component.text("This tree is too big to fall in one go. Chopping it log by log.", NamedTextColor.YELLOW));
         }
     }
 

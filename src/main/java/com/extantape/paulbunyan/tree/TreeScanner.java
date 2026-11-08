@@ -59,7 +59,7 @@ public final class TreeScanner {
                 Cell c = view.cell(n);
                 if (c.kind() == Kind.LOG && c.name().equals(species.log)) {
                     logs.add(n);
-                    if (logs.size() > limits.maxLogs()) return Scan.skip(Scan.Reason.TOO_BIG);
+                    if (logs.size() > limits.maxLogs()) return Scan.skip(Scan.Reason.TOO_BIG, "over " + limits.maxLogs() + " logs");
                     queue.add(n);
                 } else if (c.kind() == Kind.PLACED_LOG) {
                     strays.add(n);
@@ -67,14 +67,17 @@ public final class TreeScanner {
             }
         }
 
-        // 2. Nothing built may touch it.
+        // 2. Nothing built may touch it. Noted here, reported after the leaves, so a log cabin is
+        // reported as having no natural leaves (it isn't a tree at all) rather than as touching a build.
+        String build = null;
         for (Pos p : logs) {
             for (Pos n : p.faces()) {
-                Kind k = view.cell(n).kind();
-                if (k == Kind.BUILD || k == Kind.UNKNOWN) return Scan.skip(Scan.Reason.TOUCHES_BUILD);
+                Cell c = view.cell(n);
+                if (build == null && (c.kind() == Kind.BUILD || c.kind() == Kind.UNKNOWN))
+                    build = c.name().toLowerCase(java.util.Locale.ROOT) + " at " + n;
             }
         }
-        if (strays.size() > limits.maxStrays()) return Scan.skip(Scan.Reason.TOUCHES_BUILD);
+        if (build == null && strays.size() > limits.maxStrays()) build = strays.size() + " placed logs";
 
         // 3. The leaves: walk out from this tree's logs, noting any other log the leaves reach.
         Map<Pos, Integer> ours = new HashMap<>();
@@ -92,7 +95,7 @@ public final class TreeScanner {
                     if (d + 1 > LEAF_REACH) continue;
                     depth.put(n, d + 1);
                     ours.put(n, d + 1);
-                    if (ours.size() > limits.maxLeaves()) return Scan.skip(Scan.Reason.TOO_BIG);
+                    if (ours.size() > limits.maxLeaves()) return Scan.skip(Scan.Reason.TOO_BIG, "over " + limits.maxLeaves() + " leaves");
                     queue.add(n);
                 } else if (d > 0 && (c.kind() == Kind.LOG || c.kind() == Kind.PLACED_LOG)) {
                     foreign.add(n); // another tree's log, or a placed one, reached through leaves
@@ -131,6 +134,7 @@ public final class TreeScanner {
             if (!onNylium) return Scan.skip(Scan.Reason.NOT_ON_NYLIUM);
         }
         if (ours.size() < limits.minLeaves()) return Scan.skip(Scan.Reason.NO_NATURAL_LEAVES);
+        if (build != null) return Scan.skip(Scan.Reason.TOUCHES_BUILD, build);
 
         List<Pos> leaves = new ArrayList<>(ours.keySet());
         leaves.sort((a, b) -> a.y() != b.y() ? Integer.compare(a.y(), b.y()) : a.x() != b.x() ? Integer.compare(a.x(), b.x()) : Integer.compare(a.z(), b.z()));

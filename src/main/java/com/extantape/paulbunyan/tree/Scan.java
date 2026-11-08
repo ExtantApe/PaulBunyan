@@ -1,7 +1,8 @@
 package com.extantape.paulbunyan.tree;
 
 /** The scanner's answer: a tree to fell, or the reason it won't. */
-public record Scan(Tree tree, Reason skip) {
+/** {@code detail} names the block that decided it, when there is one. */
+public record Scan(Tree tree, Reason skip, String detail) {
     public enum Reason {
         NOT_A_TREE_LOG("not a natural log"),
         TOUCHES_BUILD("touches a build"),
@@ -17,11 +18,15 @@ public record Scan(Tree tree, Reason skip) {
     }
 
     public static Scan fell(Tree t) {
-        return new Scan(t, null);
+        return new Scan(t, null, null);
     }
 
     public static Scan skip(Reason r) {
-        return new Scan(null, r);
+        return new Scan(null, r, null);
+    }
+
+    public static Scan skip(Reason r, String detail) {
+        return new Scan(null, r, detail);
     }
 
     public boolean fells() {

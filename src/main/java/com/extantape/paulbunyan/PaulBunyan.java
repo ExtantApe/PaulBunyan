@@ -75,7 +75,8 @@ public final class PaulBunyan extends JavaPlugin {
         Component msg = s.fells()
             ? Component.text("[PaulBunyan] check " + where + ": falls, " + s.tree().species().name().toLowerCase() + ", "
                 + s.tree().logs().size() + " logs, " + s.tree().leaves().size() + " leaves, " + s.tree().strays() + " placed logs left standing", NamedTextColor.GREEN)
-            : Component.text("[PaulBunyan] check " + where + ": breaks like vanilla, " + s.skip().text, NamedTextColor.YELLOW);
+            : Component.text("[PaulBunyan] check " + where + ": breaks like vanilla, " + s.skip().text
+                + (s.detail() == null ? "" : " (" + s.detail() + ")"), NamedTextColor.YELLOW);
         c.getSource().getSender().sendMessage(msg);
         return Command.SINGLE_SUCCESS;
     }
