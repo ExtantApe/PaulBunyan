@@ -1,6 +1,6 @@
 # Paper 26.x audit
 
-Paul Bunyan targets Paper 26.1 and up, on Java 25, and is compiled against the 26.1.2 API. It was written
+PaulBunyan targets Paper 26.1 and up, on Java 25, and is compiled against the 26.1.2 API. It was written
 for 26.x from the start, so there was nothing older to remove. This note records which modern APIs it uses
 and which older ones it keeps, and why. Each was checked against the 26.1.2 API jar, not assumed.
 
