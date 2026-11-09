@@ -1,6 +1,6 @@
 # Decisions
 
-The owner's decisions for Paul Bunyan, with the date each was made. Where one differs from the original
+The owner's decisions for PaulBunyan, with the date each was made. Where one differs from the original
 brief's suggestion, it says so.
 
 ## 2026-11-07

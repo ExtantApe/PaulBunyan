@@ -51,7 +51,7 @@ public final class PaulBunyan extends JavaPlugin {
                         .then(Commands.argument("world", ArgumentTypes.world())
                             .executes(c -> check(c, c.getArgument("world", World.class))))))
                 .build(),
-            "Reload Paul Bunyan, or check whether a log would fall.", List.of("pb")));
+            "Reload PaulBunyan, or check whether a log would fall.", List.of("pb")));
     }
 
     @Override
@@ -62,7 +62,7 @@ public final class PaulBunyan extends JavaPlugin {
     private int reload(CommandContext<CommandSourceStack> c) {
         reloadConfig();
         feller.reload(Settings.read(getConfig(), getLogger()), new Protection(getLogger()), new BlockLog(getLogger()));
-        c.getSource().getSender().sendMessage(Component.text("Paul Bunyan reloaded.", NamedTextColor.GREEN));
+        c.getSource().getSender().sendMessage(Component.text("PaulBunyan reloaded.", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
 

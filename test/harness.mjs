@@ -7,7 +7,7 @@ import path from 'node:path'
 import mineflayer from 'mineflayer'
 
 export const HOST = '127.0.0.1'
-export const PORT = Number(process.env.PB_TEST_PORT ?? 25612) // Paul Bunyan's assigned test port
+export const PORT = Number(process.env.PB_TEST_PORT ?? 25612) // PaulBunyan's assigned test port
 export const WORK = process.env.PB_TEST_WORK
 export const JARS = process.env.PB_TEST_JARS
 export const JAVA = process.env.PB_TEST_JAVA ?? 'java'

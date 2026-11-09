@@ -1,4 +1,4 @@
-// Paul Bunyan acceptance suite. Usage: node suite.mjs <26.1.2|26.2|26.3> [only=section,section]
+// PaulBunyan acceptance suite. Usage: node suite.mjs <26.1.2|26.2|26.3> [only=section,section]
 // Builds a throwaway server on a flat world from downloaded jars and drives it with bots. Trees are grown
 // with /place feature, which builds them the way world generation does: natural logs and natural leaves.
 //
@@ -38,7 +38,7 @@ async function config(changes = {}) {
   if (!/reloaded/.test(out)) throw new Error('reload failed: ' + out)
 }
 
-console.log(`Paul Bunyan suite on Paper ${MC}, bots ${PHYSICS ? 'with' : 'without'} physics, in ${dir}`)
+console.log(`PaulBunyan suite on Paper ${MC}, bots ${PHYSICS ? 'with' : 'without'} physics, in ${dir}`)
 await s.start()
 check('PaulBunyan enabled', s.log.some(l => /Enabling PaulBunyan/.test(l)))
 check('GriefPrevention enabled', s.log.some(l => /Enabling GriefPrevention/.test(l)))

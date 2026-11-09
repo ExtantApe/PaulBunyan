@@ -3,7 +3,7 @@ package com.extantape.paulbunyan.tree;
 import java.util.Set;
 
 /**
- * The trees Paul Bunyan fells, each with its log, the blocks that act as its leaves and what it
+ * The trees PaulBunyan fells, each with its log, the blocks that act as its leaves and what it
  * replants. Names are block names, so this class loads without a server (the unit tests rely on that).
  */
 public enum Species {
