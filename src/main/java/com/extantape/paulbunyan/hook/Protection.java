@@ -22,7 +22,11 @@ public final class Protection {
     private final boolean present;
 
     public Protection(Logger log) {
-        Plugin p = Bukkit.getPluginManager().getPlugin("GriefPrevention");
+        this(Bukkit.getPluginManager().getPlugin("GriefPrevention"), log);
+    }
+
+    /** With the GriefPrevention plugin found, or null if it isn't installed. Package-private for tests. */
+    Protection(Plugin p, Logger log) {
         Object instance = null;
         Method br = null;
         Method bu = null;
