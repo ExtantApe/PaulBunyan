@@ -143,6 +143,10 @@ What the bots can't show:
 - CoreProtect 24.1 refuses to start on 26.3, so block logging was tested on 26.1.2 and 26.2 only.
 - "Player-placed leaves" are set from the console with `persistent=true`, which is exactly what the game stores when a player places leaves.
 
+## Credits
+
+Real felling was designed with LegoShepherd, who tests it and chooses the special axes' heads. See [docs/felling-plan.md](docs/felling-plan.md).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
