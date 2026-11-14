@@ -66,6 +66,12 @@ public final class BukkitView implements com.extantape.paulbunyan.tree.WorldView
     }
 
     @Override
+    public boolean isLog(Pos p) {
+        if (p.y() < world.getMinHeight() || p.y() >= world.getMaxHeight()) return false;
+        return org.bukkit.Tag.LOGS.isTagged(block(p).getType());
+    }
+
+    @Override
     public boolean sturdyTop(Pos p) {
         if (p.y() < world.getMinHeight()) return false;
         return block(p).getBlockData().isFaceSturdy(BlockFace.UP, BlockSupport.FULL);

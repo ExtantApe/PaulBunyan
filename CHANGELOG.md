@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+Real felling, second part (K597): how a fallen log lands.
+
+- A log that would end up inside the ground, where the tree hit a slope, is crushed into a log item on top. Before, it rose out of the slope and landed as a block. A log that comes down on logs that landed first still stacks on them.
+- A log that drops more than `long-drop.items-after` blocks (4) breaks into a log item, and more than `long-drop.sticks-after` (12) splinters into two sticks. Over an edge, the drop counts from the lip.
+- Lava, fire, the void and land the player can't build on still send the log to the player, whatever the drop.
+
+Tested: 44 unit tests, including each landing rule, and the full bot suite (286 of 286) on a throwaway Paper 26.1.2 server. The bots don't fell trees onto slopes or over edges, so crushing and long drops are covered by the unit tests only. Not yet seen in a real game client.
+
 ## 0.2.0 (2026-11-14)
 
 - A tree now falls from the cut, toward its heavy side, with a creak first and fall damage for anyone under it.

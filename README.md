@@ -11,6 +11,7 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 
 - Chop any log of a natural tree with an axe. Everything below your cut stays standing as a stump, and the rest creaks for a second, then tips over toward its heaviest side, or away from you if it stands straight. It's drawn with block displays, so players need nothing installed. It cracks as it goes and thuds when it lands, with a puff of wood dust on each log.
 - The logs land on the ground as logs, ready to chop again. Set `land-as: items` to drop them as items instead.
+- How a log lands depends on where it ends up. One that comes down on logs that landed first stacks on them. One that would end up inside the ground, where the tree hit a slope, is crushed into a log item on top. One that drops more than 4 blocks breaks into a log item, and more than 12 splinters into two sticks. Both cutoffs are settings under `long-drop`.
 - The leaves fall with the tree, and drop what they would have dropped if they'd decayed: saplings, sticks and apples.
 - A sapling is planted where the tree stood, free, if one can grow there. Dark and pale oak get four saplings in a square, or none if any of the four spots won't take one, because a single sapling never grows. Spruce and jungle get four where the trunk was 2x2, otherwise one. Mangroves get a propagule on the nearest mud or dirt within ten blocks of the trunk, since their roots cover the ground right around it. Huge fungi get a fungus, only on their own nylium.
 - Sneak to chop one log the normal way.
@@ -73,6 +74,8 @@ GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're instal
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `land-as` | `blocks` | `blocks` to land logs as blocks, `items` to drop them. |
+| `long-drop.items-after` | `4` | A log that drops further than this many blocks lands as a log item. |
+| `long-drop.sticks-after` | `12` | Further than this, it splinters into two sticks. |
 | `max-logs` | `250` | Bigger trees break like vanilla. |
 | `max-leaves` | `3000` | Same, for leaves. |
 | `replant` | `true` | Plant a sapling where the tree stood. |
