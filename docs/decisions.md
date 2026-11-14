@@ -40,3 +40,11 @@ brief's suggestion, it says so.
 - **Go public:** the owner approved making the repo and its v0.1.0 GitHub Release public, after the
   pre-public audit and with the leak check in CI. Modrinth, Hangar and Spigot wait for the owner's own code
   review.
+
+## 2026-11-13
+
+- **Real felling plan:** recorded and on hold while Minecraft is in maintenance mode (ops D164). The design is in [felling-plan.md](felling-plan.md).
+- **Fall damage becomes a setting.** It replaces the 2026-11-07 rule that a fall never hurts anyone. `fall-danger` works like difficulty. The default `off` keeps that old rule, and players are only knocked back or flung. At `max`, falling wood damages players, and a trunk landing on a whole body kills. The owner's own server runs `max` on every world where players can take damage. The owner's words: "It should be a server setting almost like Minecraft difficult. But in our case, ours is set to the max for best experience."
+- **Recipes:** the normal crafting table. The workbench idea waits for log stairs and slabs.
+- **Matching wood:** an axe cuts trees of its own handle wood faster.
+- **Rewild and felled trees:** descendants are never touched, and stumps regrow. With nothing left and a clear spot, Rewild grows the original back. If regrowing it would destroy anything, Rewild leaves it.
