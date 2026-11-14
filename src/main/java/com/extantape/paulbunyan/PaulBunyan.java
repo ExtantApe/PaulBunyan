@@ -40,6 +40,7 @@ public final class PaulBunyan extends JavaPlugin {
         feller = new Feller(this, settings, new PlacedBlocks(this), new Protection(getLogger()), new BlockLog(getLogger()), journal);
         feller.replay();
         getServer().getPluginManager().registerEvents(new ChopListener(feller), this);
+        if (getConfig().getBoolean("gsit-sideways-logs-only", true)) com.extantape.paulbunyan.hook.SittingLogs.register(this, getLogger());
         getServer().getScheduler().runTaskTimer(this, feller::forgetOldFalls, 20L * 60, 20L * 60);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, e -> e.registrar().register(
             Commands.literal("paulbunyan")

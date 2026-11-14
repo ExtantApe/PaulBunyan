@@ -9,13 +9,14 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.plugin.Plugin;
 
 /**
- * Records removed and placed blocks in CoreProtect, when it's installed, under the player's name, so a
- * felled tree can be looked up and rolled back like hand-chopped logs. Reached by reflection.
+ * Records removed and placed blocks in CoreProtect and Prism, whichever is installed, under the player's name, so a
+ * felled tree can be looked up and rolled back like hand-chopped logs. Both are reached by reflection.
  */
 public final class BlockLog {
     private final Object api;
     private final Method removal;
     private final Method placement;
+    private final PrismLog prism;
 
     public BlockLog(Logger log) {
         Object a = null;
@@ -39,14 +40,19 @@ public final class BlockLog {
         this.api = a;
         this.removal = r;
         this.placement = p;
+        this.prism = new PrismLog(log);
     }
 
+    /** Call before the block is removed. */
     public void removed(String who, Location at, BlockData data) {
         call(removal, who, at, data);
+        prism.broke(who, at);
     }
 
+    /** Call after the block is placed. */
     public void placed(String who, Location at, BlockData data) {
         call(placement, who, at, data);
+        prism.placed(who, at);
     }
 
     private void call(Method m, String who, Location at, BlockData data) {

@@ -9,7 +9,7 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 
 ## What it does
 
-- Chop any log of a natural tree with an axe, and the whole tree tips over, away from you, in about a second. It's drawn with block displays, so players need nothing installed. It cracks as it goes and thuds when it lands, with a puff of wood dust on each log.
+- Chop any log of a natural tree with an axe. Everything below your cut stays standing as a stump, and the rest creaks for a second, then tips over toward its heaviest side, or away from you if it stands straight. It's drawn with block displays, so players need nothing installed. It cracks as it goes and thuds when it lands, with a puff of wood dust on each log.
 - The logs land on the ground as logs, ready to chop again. Set `land-as: items` to drop them as items instead.
 - The leaves fall with the tree, and drop what they would have dropped if they'd decayed: saplings, sticks and apples.
 - A sapling is planted where the tree stood, free, if one can grow there. Dark and pale oak get four saplings in a square, or none if any of the four spots won't take one, because a single sapling never grows. Spruce and jungle get four where the trunk was 2x2, otherwise one. Mangroves get a propagule on the nearest mud or dirt within ten blocks of the trunk, since their roots cover the ground right around it. Huge fungi get a fungus, only on their own nylium.
@@ -38,6 +38,12 @@ Limits:
 - Trees bigger than `max-logs` (250) or `max-leaves` (3000) break like vanilla.
 - A bee nest on a felled tree stays where it was, in the air, bees and all.
 
+## Getting hit
+
+`fall-danger` works like difficulty. At `off`, the default, nobody is ever hurt: anyone right by the trunk is knocked back as it goes, and anyone the tree lands on is flung clear, harder the bigger the hit. At `max`, falling leaves and wood hurt, a log on the head takes 12 health (six hearts), and a trunk landing on someone kills them. If LanternGraves is installed, their things go in a grave as with any death. Set a level per world with `fall-danger-worlds`. Players in creative or spectator are never hurt.
+
+A tree cut above the ground leaves its stump standing, and no sapling is planted. Stumps don't regrow yet.
+
 ## Where logs land
 
 A log never replaces a block. It comes to rest on the first block below it. If that block has a full top, the log becomes a block. On a torch, slab, sign, flower, crop, chest or water it drops as an item instead, and the block underneath is left alone. Logs that would land in lava or fire, fall into the void, end up buried under a steep slope, or land in a GriefPrevention claim the player can't build in go to the player's inventory, and anything that doesn't fit is dropped at their feet.
@@ -60,7 +66,7 @@ What can still go wrong after a crash, rarely:
 1. Put `PaulBunyan-<version>.jar` in `plugins/`.
 2. Start the server. Settings are in `plugins/PaulBunyan/config.yml`.
 
-GriefPrevention and CoreProtect are used if they're installed. Neither is needed.
+GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're installed. None is needed. With GSit, players can sit only on logs lying on their side, never upright logs or stairs (`gsit-sideways-logs-only`; also list `#logs` in GSit's SitMaterials). Felled logs are recorded in CoreProtect and Prism under the player who chopped.
 
 ## Settings
 
@@ -114,6 +120,8 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 - GriefPrevention claims, a bot under the fall, a bot on top of the tree, and a boat
 - replanting on dirt, grass, mud, moss and stone, a blocked spot, and 2x2 trees with one bad corner
 - a chunk unloading mid-fall, a normal restart, and `kill -9` before and after a save
+- felling from the cut: a chop above the base leaves a stump and plants nothing, a ground chop replants, trees lean toward their heavy side, the fall starts after the warning, and fall-danger off, max, per world and in creative
+- Prism lookups of a fall (26.3 only, written but not yet run)
 - the size cap, ten bots felling at once (average tick under 50 ms), CoreProtect lookups, creative mode, sneaking and axe wear
 
 ```sh
@@ -123,7 +131,7 @@ node test/fetch-jars.mjs /tmp/pb-jars
 PB_TEST_WORK=/tmp/pb-work PB_TEST_JARS=/tmp/pb-jars PB_TEST_JAVA=<path to Java 25> node test/suite.mjs 26.3
 ```
 
-`fetch-jars.mjs` downloads Paper, ViaVersion, ViaBackwards, GriefPrevention and CoreProtect and checks each against the hash its publisher lists. The suite writes `eula=true` into the server it creates, which accepts Mojang's EULA for it, so only run it if you accept that. It deletes the server when it's done.
+`fetch-jars.mjs` downloads Paper, ViaVersion, ViaBackwards, GriefPrevention, CoreProtect and Prism and checks each against the hash its publisher lists. The suite writes `eula=true` into the server it creates, which accepts Mojang's EULA for it, so only run it if you accept that. It deletes the server when it's done.
 
 What the bots can't show:
 

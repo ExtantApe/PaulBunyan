@@ -152,8 +152,11 @@ public final class Feller {
                 default -> Outcome.VANILLA;
             };
         }
-        Tree tree = scan.tree();
+        Tree whole = scan.tree();
         World world = chopped.getWorld();
+        // Everything below the cut stays standing as a stump; the cut and everything above it falls.
+        Pos cutAt = pos(chopped);
+        Tree tree = aboveCut(whole, cutAt.y());
         if (wear && !axeHolds(axe, tree.logs().size())) return Outcome.AXE_TOO_WORN;
         for (Pos p : tree.logs()) if (busy.contains(key(world, p))) return Outcome.VANILLA;
         for (Pos p : tree.logs()) if (!protection.mayBreak(player, block(world, p))) return Outcome.PROTECTED;
@@ -163,9 +166,13 @@ public final class Feller {
         Map<Pos, BlockData> before = new HashMap<>();
         for (Pos p : tree.logs()) before.put(p, block(world, p).getBlockData());
         for (Pos p : tree.logs()) busy.add(key(world, p));
-        Direction dir = Direction.facing(player.getLocation().getYaw());
+        // Toward its heaviest side; a tree standing straight falls away from whoever cut it.
+        Direction dir = com.extantape.paulbunyan.fall.Lean.of(tree.logs(), tree.leaves(), tree.base(),
+                Direction.facing(player.getLocation().getYaw()));
         int extra = tree.logs().size() - 1;
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        int warning = settings.warningTicks();
+        if (warning > 0) creak(world, cutAt, warning);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
             boolean started = false;
             try {
                 started = start(player, world, tree, choppedPos, before, dir, wear ? extra : 0);
@@ -174,8 +181,39 @@ public final class Feller {
             } finally {
                 if (!started) for (Pos p : tree.logs()) busy.remove(key(world, p));
             }
-        });
+        }, Math.max(1, warning));
         return Outcome.FELLS;
+    }
+
+    /** The part of a tree from the cut up: logs and leaves at or above it. The logs at the cut height are its base. */
+    static Tree aboveCut(Tree whole, int cutY) {
+        if (cutY <= whole.minY()) return whole;
+        List<Pos> logs = new ArrayList<>(), leaves = new ArrayList<>(), base = new ArrayList<>();
+        for (Pos p : whole.logs()) {
+            if (p.y() < cutY) continue;
+            logs.add(p);
+            if (p.y() == cutY) base.add(p);
+        }
+        for (Pos p : whole.leaves()) if (p.y() >= cutY) leaves.add(p);
+        return new Tree(whole.species(), logs, leaves, base, cutY, whole.strays());
+    }
+
+    /** True when logs of the tree stay standing under the cut. */
+    static boolean leavesStump(Tree whole, int cutY) {
+        return cutY > whole.minY();
+    }
+
+    /** The warning: the trunk creaks a few times while it leans, so anyone under it can move. */
+    private void creak(World world, Pos at, int ticks) {
+        for (int t = 0; t < ticks; t += 7) {
+            float pitch = 0.5f + 0.1f * (t / 7);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                world.playSound(Sound.sound(Key.key("block.wood.hit"), Sound.Source.BLOCK, 1.3f, pitch), at.x() + 0.5, at.y() + 1.5, at.z() + 0.5);
+                world.playSound(Sound.sound(Key.key("entity.creaking.ambient"), Sound.Source.BLOCK, 0.8f, 0.6f), at.x() + 0.5, at.y() + 2, at.z() + 0.5);
+                world.spawnParticle(org.bukkit.Particle.BLOCK, at.x() + 0.5, at.y() + 1, at.z() + 0.5, 6, 0.3, 0.4, 0.3,
+                        world.getBlockAt(at.x(), at.y() + 1, at.z()).getBlockData());
+            }, t);
+        }
     }
 
     private static Block block(World w, Pos p) {
@@ -184,8 +222,9 @@ public final class Feller {
 
     private boolean start(Player player, World world, Tree tree, Pos chopped, Map<Pos, BlockData> before, Direction dir, int wear) {
         busy.remove(key(world, chopped));
-        // The break went through, and nothing else changed the tree since.
-        if (!block(world, chopped).getType().isAir()) return false;
+        // The break went through, and nothing else changed the tree since. Something else may have filled the cut during
+        // the warning (water flowing in, say); that doesn't stop the fall, only the log still being there does.
+        if (block(world, chopped).getBlockData().equals(before.get(chopped))) return false;
         for (Pos p : tree.logs()) {
             if (p.equals(chopped)) continue;
             if (!block(world, p).getBlockData().equals(before.get(p))) return false;
@@ -204,7 +243,8 @@ public final class Feller {
             BlockData data = before.get(p);
             logs.add(new Journal.Log(p, data.getAsString(), plan.tipped(p), tipped(data, dir).getAsString()));
         }
-        String sapling = sapling(world, tree);
+        // A sapling only goes in when the tree was cut at the ground. A stump left behind regrows in a later version.
+        String sapling = groundCut(world, tree) ? sapling(world, tree) : null;
         UUID id = UUID.randomUUID();
         Journal.Entry entry = new Journal.Entry(id, world.getName(), player.getUniqueId(), player.getName(),
             settings.landAsItems(), tree.minY(), settings.replant() ? sapling : null, tree.base(), logs, false, 0, List.of());
@@ -234,6 +274,7 @@ public final class Feller {
             b.setType(Material.AIR, true);
         }
         spareFallDamage(world, tree);
+        nearTrunk(world, tree);
         Pos stump = tree.base().getFirst();
         world.playSound(Sound.sound(Key.key("block.wood.break"), Sound.Source.BLOCK, 1.2f, 0.55f), stump.x() + 0.5, stump.y() + 1, stump.z() + 0.5);
         world.playSound(Sound.sound(Key.key("block.grass.break"), Sound.Source.BLOCK, 0.8f, 0.7f), stump.x() + 0.5, stump.y() + 3, stump.z() + 0.5);
@@ -249,6 +290,16 @@ public final class Feller {
             if (a.tick > animation.ticks()) land(a);
             else animation.tick(a.tick);
         }, 1L, 1L);
+        return true;
+    }
+
+    /** The cut was at the bottom of the trunk: nothing of the tree's own wood is left under it. */
+    private static boolean groundCut(World world, Tree tree) {
+        for (Pos p : tree.base()) {
+            Block below = world.getBlockAt(p.x(), p.y() - 1, p.z());
+            if (org.bukkit.Tag.LOGS.isTagged(below.getType()) || below.getType().name().endsWith("_STEM")
+                    || below.getType().name().endsWith("_HYPHAE")) return false;
+        }
         return true;
     }
 
@@ -295,6 +346,64 @@ public final class Feller {
         }
     }
 
+    /** Anyone right by the trunk as it goes is knocked back from it, at every danger level. */
+    private void nearTrunk(World world, Tree tree) {
+        double cx = 0, cz = 0;
+        for (Pos p : tree.base()) { cx += p.x() + 0.5; cz += p.z() + 0.5; }
+        cx /= Math.max(1, tree.base().size());
+        cz /= Math.max(1, tree.base().size());
+        for (Player p : world.getPlayers()) {
+            if (p.getGameMode() == org.bukkit.GameMode.SPECTATOR) continue;
+            Location l = p.getLocation();
+            double dx = l.getX() - cx, dz = l.getZ() - cz;
+            double d = Math.sqrt(dx * dx + dz * dz);
+            if (d > 2.0 || l.getY() < tree.minY() - 1 || l.getY() > tree.minY() + 3) continue;
+            if (d < 0.01) { dx = 1; d = 1; }
+            p.setVelocity(p.getVelocity().add(new org.bukkit.util.Vector(dx / d * com.extantape.paulbunyan.fall.Danger.NEAR_TRUNK_FLING, 0.3,
+                    dz / d * com.extantape.paulbunyan.fall.Danger.NEAR_TRUNK_FLING)));
+        }
+    }
+
+    /**
+     * Whoever the falling wood lands on is flung clear, and at fall-danger max, hurt or killed. A log landing above a
+     * player falls through their head and then their feet, so it counts on both.
+     */
+    private void strike(Active a) {
+        var level = settings.danger(a.world.getName());
+        Map<Long, List<Integer>> logsByColumn = new HashMap<>(), leavesByColumn = new HashMap<>();
+        for (Journal.Log l : a.entry.logs()) logsByColumn.computeIfAbsent(column(l.target()), k -> new ArrayList<>()).add(l.target().y());
+        for (LeafDrop d : a.leafDrops) leavesByColumn.computeIfAbsent(column(d.target()), k -> new ArrayList<>()).add(d.target().y());
+        Direction dir = a.plan.direction();
+        for (Player p : a.world.getPlayers()) {
+            if (p.getGameMode() == org.bukkit.GameMode.SPECTATOR) continue;
+            Location l = p.getLocation();
+            int feet = l.getBlockY(), head = feet + 1;
+            long col = column(new Pos(l.getBlockX(), 0, l.getBlockZ()));
+            int onFeet = 0, onHead = 0, leaves = 0;
+            for (int y : logsByColumn.getOrDefault(col, List.of())) {
+                if (y > head) { onFeet++; onHead++; }
+                else if (y == head) onHead++;
+                else if (y == feet) onFeet++;
+            }
+            for (int y : leavesByColumn.getOrDefault(col, List.of())) if (y >= feet) leaves++;
+            boolean hurtable = p.getGameMode() == org.bukkit.GameMode.SURVIVAL || p.getGameMode() == org.bukkit.GameMode.ADVENTURE;
+            var hit = com.extantape.paulbunyan.fall.Danger.hit(hurtable ? level : com.extantape.paulbunyan.fall.Danger.Level.OFF, onFeet, onHead, leaves);
+            if (hit.fling() == 0 && !hit.kills() && hit.damage() == 0) continue;
+            // Flung sideways off the line the tree fell along, away from it.
+            double side = dir.alongX() ? Math.signum(l.getZ() - (a.entry.replant().getFirst().z() + 0.5)) : Math.signum(l.getX() - (a.entry.replant().getFirst().x() + 0.5));
+            if (side == 0) side = 1;
+            org.bukkit.util.Vector v = dir.alongX() ? new org.bukkit.util.Vector(dir.dx * 0.3, 0.45, side * hit.fling())
+                    : new org.bukkit.util.Vector(side * hit.fling(), 0.45, dir.dz * 0.3);
+            p.setVelocity(v);
+            if (hit.kills()) p.setHealth(0);
+            else if (hit.damage() > 0) p.damage(hit.damage());
+        }
+    }
+
+    private static long column(Pos p) {
+        return ((long) p.x() << 32) ^ (p.z() & 0xffffffffL);
+    }
+
     public boolean sparesFallDamage(UUID player) {
         Long until = fallGrace.get(player);
         if (until == null) return false;
@@ -308,6 +417,11 @@ public final class Feller {
     private void land(Active a) {
         if (a.task != null) a.task.cancel();
         a.animation.remove();
+        try {
+            strike(a);
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.WARNING, "Couldn't work out who the tree landed on", e);
+        }
         active.remove(a.entry.id());
         try {
             Journal.Entry done = settle(a.world, a.entry, a.plan.minY(), a.leafDrops, null);
