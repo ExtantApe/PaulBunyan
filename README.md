@@ -145,7 +145,7 @@ What the bots can't show:
 
 ## Credits
 
-Real felling was designed with LegoShepherd, who tests it and chooses the special axes' heads. See [docs/felling-plan.md](docs/felling-plan.md).
+A big thanks goes to LegoShepherd for brainstorming this idea out with me.
 
 ## License
 
