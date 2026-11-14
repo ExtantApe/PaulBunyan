@@ -36,3 +36,7 @@ warning-ticks: 20
 fall-danger: off
 fall-danger-worlds: {}
 #   world: max
+
+# With GSit installed, players can sit only on logs lying on their side, like a felled trunk: never on upright logs or
+# stairs. Also list '#logs' in GSit's own SitMaterials, or GSit won't offer logs at all. Read at startup.
+gsit-sideways-logs-only: true

@@ -66,7 +66,7 @@ What can still go wrong after a crash, rarely:
 1. Put `PaulBunyan-<version>.jar` in `plugins/`.
 2. Start the server. Settings are in `plugins/PaulBunyan/config.yml`.
 
-GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're installed. None is needed. Felled logs are recorded in CoreProtect and Prism under the player who chopped.
+GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're installed. None is needed. With GSit, players can sit only on logs lying on their side, never upright logs or stairs (`gsit-sideways-logs-only`; also list `#logs` in GSit's SitMaterials). Felled logs are recorded in CoreProtect and Prism under the player who chopped.
 
 ## Settings
 

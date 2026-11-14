@@ -15,6 +15,9 @@ dependencies:
     prism:
       load: BEFORE
       required: false
+    GSit:
+      load: BEFORE
+      required: false
 permissions:
   paulbunyan.fell:
     description: Fell trees with an axe.
