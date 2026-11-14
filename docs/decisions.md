@@ -48,3 +48,7 @@ brief's suggestion, it says so.
 - **Recipes:** the normal crafting table. The workbench idea waits for log stairs and slabs.
 - **Matching wood:** an axe cuts trees of its own handle wood faster.
 - **Rewild and felled trees:** descendants are never touched, and stumps regrow. With nothing left and a clear spot, Rewild grows the original back. If regrowing it would destroy anything, Rewild leaves it.
+
+## 2026-11-14
+
+- **Real felling, first part (ops D170):** the owner asked for everything left to be built and staged for a test session: "Build everything we have left plugin wise and stage it", with the scope "Include the felling plan" and "Run as inconspicuous as possible on Minecraft stuff so it's great work but cheap." 0.2.0 builds the parts of [felling-plan.md](felling-plan.md) that could be made solid in time: the cut height and stump, falling toward the heaviest side, the one-second creak, and `fall-danger` (`off` default, `max`, per world). Logging also goes to Prism (ops D168). Not built yet, and left out of the test: falling in one piece with breaks, crushed parts, terrain and long drops, special axes, the wedge, crosscut saw and peavey, regrowth and the Rewild link. A stump left by a high cut gets no sapling until regrowth exists.

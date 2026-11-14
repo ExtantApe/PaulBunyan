@@ -12,6 +12,9 @@ dependencies:
     CoreProtect:
       load: BEFORE
       required: false
+    prism:
+      load: BEFORE
+      required: false
 permissions:
   paulbunyan.fell:
     description: Fell trees with an axe.

@@ -25,3 +25,14 @@ max-animated-blocks: 600
 
 # Worlds where trees never fall, by folder name.
 disabled-worlds: []
+
+# Ticks the tree creaks and leans before it goes, so anyone underneath can get clear. 20 is one second; 0 falls at once.
+warning-ticks: 20
+
+# What a falling tree does to someone in its way, like difficulty:
+#   off  nobody is hurt; they're knocked back or flung clear, harder the bigger the hit (the default)
+#   max  falling wood hurts, a log on the head hurts a lot, and the trunk landing on someone kills them
+# Players in creative or spectator are never hurt. Set a different level for a world below.
+fall-danger: off
+fall-danger-worlds: {}
+#   world: max
