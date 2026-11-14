@@ -19,7 +19,8 @@ public record Settings(
     Set<String> disabledWorlds,
     int warningTicks,
     com.extantape.paulbunyan.fall.Danger.Level fallDanger,
-    java.util.Map<String, com.extantape.paulbunyan.fall.Danger.Level> fallDangerWorlds) {
+    java.util.Map<String, com.extantape.paulbunyan.fall.Danger.Level> fallDangerWorlds,
+    com.extantape.paulbunyan.fall.Landing.Drops drops) {
 
     /** How dangerous a fall is in this world. */
     public com.extantape.paulbunyan.fall.Danger.Level danger(String world) {
@@ -50,10 +51,17 @@ public record Settings(
             if (l == null) log.warning("fall-danger-worlds." + w + " must be off or max. Using off there.");
             perWorld.put(w, l == null ? com.extantape.paulbunyan.fall.Danger.Level.OFF : l);
         }
+        int itemsAfter = clamp(c.getInt("long-drop.items-after", 4), 0, 384, "long-drop.items-after", log);
+        int sticksAfter = clamp(c.getInt("long-drop.sticks-after", 12), 0, 384, "long-drop.sticks-after", log);
+        if (sticksAfter < itemsAfter) {
+            log.warning("long-drop.sticks-after (" + sticksAfter + ") is shorter than long-drop.items-after (" + itemsAfter + "). Using " + itemsAfter + " for both.");
+            sticksAfter = itemsAfter;
+        }
         return new Settings(land.equals("items"),
             new TreeScanner.Limits(maxLogs, maxLeaves, TreeScanner.Limits.DEFAULT.minLeaves(), TreeScanner.Limits.DEFAULT.maxStrays()),
             c.getBoolean("replant", true), c.getBoolean("nether-fungi", true), c.getBoolean("creative-fells", false),
-            fallTicks, maxAnimated, disabled, warning, level, perWorld);
+            fallTicks, maxAnimated, disabled, warning, level, perWorld,
+            new com.extantape.paulbunyan.fall.Landing.Drops(itemsAfter, sticksAfter));
     }
 
     private static int clamp(int v, int min, int max, String key, Logger log) {

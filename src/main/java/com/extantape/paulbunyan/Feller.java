@@ -454,7 +454,7 @@ public final class Feller {
             if (onlyMissing != null && !onlyMissing.contains(l.origin())) continue;
             world.getChunkAt(l.target().x() >> 4, l.target().z() >> 4); // loads it if it was unloaded mid-fall
             BlockData data = Bukkit.createBlockData(l.tippedData());
-            Landing.Result r = Landing.find(view, l.target(), minY, e.asItems());
+            Landing.Result r = Landing.find(view, l.target(), minY, e.asItems(), settings.drops());
             ItemStack item = new ItemStack(data.getMaterial());
             switch (r.outcome()) {
                 case BLOCK -> {
@@ -465,10 +465,16 @@ public final class Feller {
                     blockLog.placed(who, b.getLocation(), data);
                     blocks.add(new Journal.Landed(l.origin(), r.at(), data.getAsString()));
                 }
-                case ITEM -> {
+                case ITEM, CRUSHED -> {
                     landedAt.add(r.at());
                     landedData.add(data);
                     world.dropItem(center(world, r.at()), item, i -> i.setVelocity(new org.bukkit.util.Vector()));
+                }
+                case SPLINTERED -> {
+                    // A long way down: the log splinters. Two sticks, a quarter of what the log would make.
+                    landedAt.add(r.at());
+                    landedData.add(data);
+                    world.dropItem(center(world, r.at()), new ItemStack(org.bukkit.Material.STICK, 2), i -> i.setVelocity(new org.bukkit.util.Vector()));
                 }
                 case TO_PLAYER -> toPlayer.add(item);
             }
@@ -478,7 +484,7 @@ public final class Feller {
             for (LeafDrop d : leafDrops) {
                 if (d.items().isEmpty()) continue;
                 Landing.Result r = Landing.find(view, d.target(), minY, true);
-                Location at = r.outcome() == Landing.Outcome.ITEM ? center(world, r.at()) : stump;
+                Location at = r.outcome() != Landing.Outcome.TO_PLAYER ? center(world, r.at()) : stump;
                 for (ItemStack i : d.items()) world.dropItem(at, i);
             }
         }

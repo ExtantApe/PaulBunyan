@@ -4,6 +4,12 @@
 # What fallen logs turn into when they land: "blocks" to chop up where they lie, or "items".
 land-as: blocks
 
+# A log that drops further than items-after blocks as it lands breaks into a log item, and further than sticks-after
+# splinters into two sticks. A log that lands inside the ground, on a slope it hit, is crushed into a log item.
+long-drop:
+  items-after: 4
+  sticks-after: 12
+
 # Trees with more logs or leaves than this break like vanilla instead of falling.
 max-logs: 250
 max-leaves: 3000
