@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+Real felling, third part (K597): regrowth.
+
+- A stump left by a high cut is remembered in `plugins/PaulBunyan/regrowth.txt`. About three in-game days later (`regrowth.stump-days`, with random spread) it grows into a wild, one-off tree of its own kind, made up by the plugin from a saved seed: a twisting trunk, odd branches, a ragged crown with mixed leaves. It only grows where every block is air or a small plant, outside claims, clear of builds, with nobody standing in it and its chunks loaded. Otherwise it waits and tries again. It never replaces anything else. Before, a stump got no sapling and stayed a stump.
+- Once a fall's logs are cleared, up to three saplings of its kind sprout along where it lay, on grass or dirt outside claims, and are removed after 30 in-game days if they haven't grown. A cut at the ground still replants at the base.
+- With Rewild installed, saplings PaulBunyan planted and trees grown from stumps or those saplings are reported as keeps. Rewild growing the original tree back is Rewild's side, not built here.
+- Growth is logged in CoreProtect and Prism as the plugin, not a player.
+- New `regrowth` settings: `stumps`, `stump-days`, `saplings`, `sapling-max`, `sapling-days`, `disabled-worlds` (a per-world off switch) and `rewild-link`.
+
+Tested: 88 unit tests, and the full bot suite (315 of 315) on a throwaway Paper 26.1.2 server with an in-game day shortened to 5 seconds. Not tested live: GriefPrevention claims refusing growth (unit tests only), Rewild itself (the provider is tested against a stand-in), 26.2 and 26.3, and a real game client.
+
 ## 0.3.0
 
 Real felling, second part (K597): how a fallen log lands.

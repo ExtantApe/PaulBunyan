@@ -19,6 +19,8 @@ public final class Protection {
     private final Object gp;
     private final Method allowBreak;
     private final Method allowBuild;
+    private final Object dataStore;
+    private final Method claimAt;
     private final boolean present;
 
     public Protection(Logger log) {
@@ -30,6 +32,8 @@ public final class Protection {
         Object instance = null;
         Method br = null;
         Method bu = null;
+        Object store = null;
+        Method at = null;
         if (p != null && p.isEnabled()) {
             try {
                 Class<?> c = p.getClass();
@@ -37,6 +41,10 @@ public final class Protection {
                 instance = f.get(null);
                 br = c.getMethod("allowBreak", Player.class, Block.class, Location.class);
                 bu = c.getMethod("allowBuild", Player.class, Location.class);
+                store = c.getField("dataStore").get(instance);
+                for (Method m : store.getClass().getMethods())
+                    if (m.getName().equals("getClaimAt") && m.getParameterCount() == 3 && m.getParameterTypes()[0] == Location.class) at = m;
+                if (at == null) throw new NoSuchMethodException("DataStore.getClaimAt(Location, boolean, Claim)");
             } catch (ReflectiveOperationException | RuntimeException e) {
                 log.warning("GriefPrevention is installed but its claim check couldn't be found ("
                     + e + "). Trees won't fall at all until this is fixed.");
@@ -47,6 +55,8 @@ public final class Protection {
         this.gp = instance;
         this.allowBreak = br;
         this.allowBuild = bu;
+        this.dataStore = instance == null ? null : store;
+        this.claimAt = instance == null ? null : at;
         if (gp != null) log.info("Checking GriefPrevention claims before felling.");
     }
 
@@ -61,6 +71,20 @@ public final class Protection {
             return allowBreak.invoke(gp, player, b, b.getLocation()) == null;
         } catch (ReflectiveOperationException | RuntimeException e) {
             return false;
+        }
+    }
+
+    /**
+     * Is this spot in anyone's claim, at any height? Used where no player is involved, so nothing grows into a claim.
+     * If GriefPrevention is there but can't be asked, the answer is yes.
+     */
+    public boolean claimed(Location at) {
+        if (!present) return false;
+        if (gp == null || dataStore == null || claimAt == null) return true;
+        try {
+            return claimAt.invoke(dataStore, at, true, null) != null;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return true;
         }
     }
 

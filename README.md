@@ -1,8 +1,8 @@
 # PaulBunyan
 
-A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tips over, the logs land on the ground, and a sapling goes back in where it stood.
+A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tips over and the logs land on the ground. Cut at the ground and a sapling goes back in. Cut higher and the stump grows into a new wild tree of its own.
 
-**Status:** pre-release. It has passed a bot test suite on throwaway Paper 26.1.2, 26.2 and 26.3 servers, and 25 unit tests. It hasn't been seen in a real game client yet, so how the fall looks, sounds and feels, and whether older clients connected through ViaVersion show it properly, are untested. See [Testing](#testing).
+**Status:** pre-release. It has passed a bot test suite on throwaway Paper 26.1.2, 26.2 and 26.3 servers, and 88 unit tests. Regrowth (0.4.0) passed the bot suite (315 checks) on 26.1.2 only, and has never run with Rewild installed. It hasn't been seen in a real game client yet, so how the fall looks, sounds and feels, and whether older clients connected through ViaVersion show it properly, are untested. See [Testing](#testing).
 
 - Requires Paper 26.1 or newer, on Java 25. Tested on 26.1.2, 26.2 and 26.3. Java Edition only.
 - Replaces tree-felling plugins such as TreeAssist and LumberJack.
@@ -13,6 +13,9 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 - The logs land on the ground as logs, ready to chop again. Set `land-as: items` to drop them as items instead.
 - How a log lands depends on where it ends up. One that comes down on logs that landed first stacks on them. One that would end up inside the ground, where the tree hit a slope, is crushed into a log item on top. One that drops more than 4 blocks breaks into a log item, and more than 12 splinters into two sticks. Both cutoffs are settings under `long-drop`.
 - The leaves fall with the tree, and drop what they would have dropped if they'd decayed: saplings, sticks and apples.
+- **Stumps grow back.** A stump left by a high cut is written down in `regrowth.txt`. About three in-game days later (`regrowth.stump-days`, with some random spread) it grows into a wild one-off tree of its own kind: a trunk that twists as it climbs, a few odd branches and a ragged crown, with a second kind of leaf mixed in for some species. The tree is made up by the plugin, and the same stump always gets the same tree, so a crash in the middle of growing finishes the same tree. It only grows where every block it needs is air or a small plant (short grass, fern, dead bush, snow), outside every GriefPrevention claim, with nothing of a build touching it, nobody standing in it and all of it loaded. If any of that fails it leaves everything alone and tries again about a quarter of a day later. It never replaces anything else. A stump someone chops down stays gone.
+- **Saplings along the fall.** Once the logs a tree left lying are all gone (chopped, picked up or cleared), up to three saplings of its kind (`regrowth.sapling-max`) sprout where it lay, on grass or dirt, spread apart, outside claims. One that hasn't grown after 30 in-game days (`regrowth.sapling-days`) is removed. Dark and pale oak sprout one square of four, or none, because a single sapling never grows. This only happens when the logs landed as blocks, not with `land-as: items`, and only for falls that landed while the plugin was running.
+- **Rewild.** If Rewild is installed, PaulBunyan tells it to keep the saplings it planted and the trees that grew from stumps or from those saplings. Rewild only listens once an admin respects PaulBunyan with `/rewild plugins`.
 - A sapling is planted where the tree stood, free, if one can grow there. Dark and pale oak get four saplings in a square, or none if any of the four spots won't take one, because a single sapling never grows. Spruce and jungle get four where the trunk was 2x2, otherwise one. Mangroves get a propagule on the nearest mud or dirt within ten blocks of the trunk, since their roots cover the ground right around it. Huge fungi get a fungus, only on their own nylium.
 - Sneak to chop one log the normal way.
 - When a real tree won't fall, the action bar says why: it touches a build, it's too big, part of it is in someone's claim, or your axe is too worn. Chopping a log cabin or a log fence says nothing, because those aren't trees.
@@ -43,7 +46,7 @@ Limits:
 
 `fall-danger` works like difficulty. At `off`, the default, nobody is ever hurt: anyone right by the trunk is knocked back as it goes, and anyone the tree lands on is flung clear, harder the bigger the hit. At `max`, falling leaves and wood hurt, a log on the head takes 12 health (six hearts), and a trunk landing on someone kills them. If LanternGraves is installed, their things go in a grave as with any death. Set a level per world with `fall-danger-worlds`. Players in creative or spectator are never hurt.
 
-A tree cut above the ground leaves its stump standing, and no sapling is planted. Stumps don't regrow yet.
+A tree cut above the ground leaves its stump standing, and no sapling is planted there. The stump grows back by itself instead (see above).
 
 ## Where logs land
 
@@ -52,6 +55,21 @@ A log never replaces a block. It comes to rest on the first block below it. If t
 The log you chop yourself drops as an item, the same as in vanilla, so lava right beside the trunk can catch it.
 
 Logs never land inside a player, mob or boat, and nobody on or under a falling tree takes fall damage for ten seconds.
+
+## Regrowth list
+
+`plugins/PaulBunyan/regrowth.txt` is plain text, one fact per line, written to a temporary file and moved into place so a crash leaves a whole file. It's saved within five seconds of a change and when the plugin stops. Don't edit it while the server runs. Times are the world's game time in ticks, and world names are URL-encoded.
+
+| Line | What it is |
+| --- | --- |
+| `stump world species seed due growing x,y,z;...` | A stump waiting to grow: the top standing log of each trunk column, the seed that decides its tree and when it's due. `growing` is 1 while a tree is going in. |
+| `fall world species seed born sapling x,y,z;...` | Where a fall's logs lie. Saplings sprout once they're all gone. Forgotten after 60 days. |
+| `sapling world x,y,z material expires` | A sapling PaulBunyan planted. `expires` 0 means it stays, as the one at the base does. |
+| `grown world x,y,z x,y,z` | The box around a tree that grew from a stump or a sapling, for Rewild to keep. |
+
+Growth is recorded in CoreProtect as `#paulbunyan` and in Prism as `PaulBunyan`, not as a player.
+
+Limits: time only counts while the world is loaded. Falls that landed before 0.4.0, or that a crash replayed, get no sprouts. A grown tree stays on the Rewild list even if someone later chops it down. Rewild before 0.3.0 only understands whole chunks, so it keeps nothing from this list.
 
 ## If the server stops mid-fall
 
@@ -84,6 +102,13 @@ GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're instal
 | `fall-ticks` | `24` | How long the fall takes, in ticks. `0` lands at once with no animation. |
 | `max-animated-blocks` | `600` | Above this many logs and leaves, the leaves vanish instead of falling with the tree. |
 | `disabled-worlds` | `[]` | Worlds where trees never fall, by folder name. |
+| `regrowth.stumps` | `true` | A stump left by a high cut grows into a wild tree. |
+| `regrowth.stump-days` | `3` | In-game days until it grows, give or take half again. |
+| `regrowth.saplings` | `true` | Saplings sprout along a fall once its logs are cleared. |
+| `regrowth.sapling-max` | `3` | The most places that sprout per tree. |
+| `regrowth.sapling-days` | `30` | A sprout that hasn't grown by then is removed. |
+| `regrowth.disabled-worlds` | `[]` | Worlds where nothing regrows, by folder name. |
+| `regrowth.rewild-link` | `true` | Tell Rewild which saplings and grown trees to keep. |
 
 ## Commands
 
@@ -111,7 +136,7 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 
 ## Testing
 
-`./gradlew build` runs the unit tests: the tree scanner, the fall plan and the landing rules, against a made-up world.
+`./gradlew build` runs the unit tests: the tree scanner, the fall plan and the landing rules, the wild tree generator (same seed, same tree, nothing on the stump, in bounds), every rule that stops a stump growing (a block in the way, a claim, a build, someone standing there, not loaded, a replay after a crash), the regrowth list's save and load and the settings, against a made-up world.
 
 `test/suite.mjs` builds a throwaway Paper server on a flat world on 127.0.0.1:25612, grows trees with `/place feature` (the way world generation does), and drives it with [mineflayer](https://github.com/PrismarineJS/mineflayer) bots. It checks:
 
@@ -120,6 +145,7 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 - log cabins, log fences, placed logs with placed leaves, and a house around a real tree (none of them fall)
 - a torch on a trunk, two trees sharing leaves, and a stray placed log
 - landings on torches, slabs, signs, flowers, crops, chests (contents checked), water, lava, a cliff and the void, in both modes
+- regrowth: a stump grows back into a tree after its time, a block in the trunk's way or a build touching it makes it wait and nothing is replaced, a world on `regrowth.disabled-worlds` and `regrowth.stumps: false` grow nothing, saplings sprout along a fall once its logs are cleared and the unwanted ones are removed after their days (an in-game day is shortened to 5 seconds for these)
 - GriefPrevention claims, a bot under the fall, a bot on top of the tree, and a boat
 - replanting on dirt, grass, mud, moss and stone, a blocked spot, and 2x2 trees with one bad corner
 - a chunk unloading mid-fall, a normal restart, and `kill -9` before and after a save

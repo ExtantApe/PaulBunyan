@@ -25,15 +25,19 @@ const prismJar = process.env.PB_TEST_JARS && path.join(process.env.PB_TEST_JARS,
 const prism = MC === '26.3' && existsSync(prismJar) // fetch-jars.mjs gets the Prism build listed for 26.3
 const dir = freshServer('suite-' + MC, { paper: jar(`paper-${MC}.jar`),
   plugins: [jar('ViaVersion.jar'), jar('ViaBackwards.jar'), jar('GriefPrevention.jar'), jar('CoreProtect.jar'), ...(prism ? [prismJar] : [])] })
-const s = new Server({ dir })
+// An in-game day is 100 ticks (5 s) here, so regrowth takes seconds. Only the regrowth section turns stumps on.
+const s = new Server({ dir, jvm: ['-Dpaulbunyan.test.day-ticks=100'] })
 const cfgFile = path.join(dir, 'plugins/PaulBunyan/config.yml')
 const baseConfig = readFileSync(DEFAULT_CONFIG, 'utf8')
+const SUITE_DEFAULTS = { 'regrowth.stumps': false } // stumps would grow back mid-test in the other sections
 async function config(changes = {}) {
   let text = baseConfig
-  for (const [k, v] of Object.entries(changes)) {
-    const re = new RegExp(`^${k}: .*$`, 'm')
+  for (const [k, v] of Object.entries({ ...SUITE_DEFAULTS, ...changes })) {
+    // a nested key such as regrowth.stumps is the line "  stumps: ..." under "regrowth:"
+    const [, name] = k.includes('.') ? k.split('.') : [null, k]
+    const re = k.includes('.') ? new RegExp(`^  ${name}: .*$`, 'm') : new RegExp(`^${k}: .*$`, 'm')
     if (!re.test(text)) throw new Error('no setting ' + k)
-    text = text.replace(re, `${k}: ${v}`)
+    text = text.replace(re, `${k.includes('.') ? '  ' : ''}${name}: ${v}`)
   }
   writeFileSync(cfgFile, text)
   const out = (await s.ask('paulbunyan reload', 800)).join(' ')
@@ -871,6 +875,132 @@ if (want('other')) {
     const m = dmg.match(/"?minecraft:damage"?: (\d+)/)
     check(`the axe wears one point per log (${g.t.logs})`, m && +m[1] === g.t.logs, dmg.slice(0, 200))
     await release(p)
+  }
+}
+
+
+// ---------- regrowth ----------
+// An in-game day is 100 ticks here (see the -D flag above), so "3 days" is about 15 seconds and "1 day" about 5.
+// The list the plugin keeps is read straight from its file: plugins/PaulBunyan/regrowth.txt.
+const listFile = path.join(dir, 'plugins/PaulBunyan/regrowth.txt')
+const listed = kind => (existsSync(listFile) ? readFileSync(listFile, 'utf8').split('\n').filter(l => l.startsWith(kind + ' ')) : [])
+if (want('regrowth')) {
+  section('Regrowth: stumps, saplings along a fall')
+  await config({ 'regrowth.stumps': true, 'regrowth.stump-days': 1, 'regrowth.sapling-days': 30 })
+  {
+    // 1. a high cut leaves a stump, which is remembered and, after its time, grows into a tree of its own
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    if (check('regrowth: an oak grows for the stump test', g.ok && g.t.falls && g.t.logs >= 4, g.ok ? JSON.stringify(g.t) : g.why)) {
+      const bx = g.base.position.x, bz = g.base.position.z, by = g.base.position.y
+      const column = y => me.blockAt(new Vec3(bx, y, bz))?.name
+      await axe()
+      await chop(me, me.blockAt(new Vec3(bx, by + 2, bz)))
+      await waitFall(44)
+      check('regrowth: the stump stands (two logs) and nothing is planted', column(by) === 'oak_log' && column(by + 1) === 'oak_log' && blocksNear(me, 'oak_sapling', p.c, 8).length === 0)
+      check('regrowth: the stump is in the saved list', await until(() => listed('stump').some(l => l.includes(`${bx},${by + 1},${bz}`)), 12000), listed('stump').join(' | '))
+      const grew = await until(() => column(by + 2) === 'oak_log', 60000, 250)
+      check('regrowth: the stump grows into a tree after its time', grew, 'column above the stump: ' + column(by + 2))
+      await sleep(1500)
+      const logs = blocksNear(me, 'oak_log', new Vec3(bx, by + 6, bz), 14).filter(v => v.y >= by + 2)
+      const leaves = blocksNear(me, 'oak_leaves', new Vec3(bx, by + 8, bz), 14).length + blocksNear(me, 'azalea_leaves', new Vec3(bx, by + 8, bz), 14).length
+      check('regrowth: the new tree has a trunk, branches and a crown', logs.length >= 6 && leaves >= 20, `${logs.length} logs, ${leaves} leaves`)
+      check('regrowth: its trunk climbs from the stump', logs.some(v => Math.abs(v.x - bx) <= 2 && Math.abs(v.z - bz) <= 2 && v.y === by + 2))
+      const t = await s.treeCheck(bx, by, bz)
+      check('regrowth: the grown tree is a natural tree the plugin would fell', t.falls && t.logs >= 8, JSON.stringify(t))
+      check('regrowth: the stump leaves the list once it has grown', await until(() => !listed('stump').some(l => l.includes(`${bx},${by + 1},${bz}`)), 12000))
+      check('regrowth: the tree is on the list of grown trees, for Rewild to keep', listed('grown').length >= 1, listed('grown').join(' | '))
+      check('regrowth: the plugin logged no errors growing it', s.exceptions().length === 0, s.exceptions().slice(0, 5).join('\n'))
+      if (coreProtect) {
+        await sleep(6000) // CoreProtect writes in batches
+        const put = (await s.ask(`co lookup user:#paulbunyan time:5m radius:#global action:+block include:oak_log`, 3000)).join('\n')
+        check('regrowth: CoreProtect shows the growth as placed by #paulbunyan, not a player', /placed oak_log/i.test(put) && !/Chopper/.test(put.split('\n').filter(l => /oak_log/.test(l)).join()), put.slice(0, 500))
+      }
+    }
+    await release(p)
+  }
+  {
+    // 2. a block in the way: the stump waits, nothing is replaced, and it grows once the way is clear
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    if (check('regrowth: an oak grows for the blocked-stump test', g.ok && g.t.falls, g.ok ? '' : g.why)) {
+      const bx = g.base.position.x, bz = g.base.position.z, by = g.base.position.y
+      const column = y => me.blockAt(new Vec3(bx, y, bz))?.name
+      await axe()
+      await chop(me, me.blockAt(new Vec3(bx, by + 2, bz)))
+      await waitFall(44)
+      await s.ask(`setblock ${bx} ${by + 2} ${bz} minecraft:cobblestone`, 300)
+      await until(() => column(by + 2) === 'cobblestone', 5000)
+      await sleep(22000) // well past the stump's time (up to 7.5 s) and a retry
+      check('regrowth: a block in the trunk\'s way is not replaced', column(by + 2) === 'cobblestone', 'it is ' + column(by + 2))
+      const above = blocksNear(me, 'oak_log', new Vec3(bx, by + 6, bz), 10).filter(v => v.x === bx && v.z === bz && v.y >= by + 3)
+      const crown = blocksNear(me, 'oak_leaves', new Vec3(bx, by + 8, bz), 7).length + blocksNear(me, 'azalea_leaves', new Vec3(bx, by + 8, bz), 7).length
+      check('regrowth: nothing of the tree went in around it', above.length === 0 && crown === 0, `${above.length} logs in the trunk's column above it, ${crown} leaves near the crown`)
+      check('regrowth: the stump is still waiting on the list', listed('stump').some(l => l.includes(`${bx},${by + 1},${bz}`)), listed('stump').join(' | '))
+      await s.ask(`setblock ${bx} ${by + 2} ${bz} minecraft:air`, 300)
+      check('regrowth: once the way is clear it grows', await until(() => column(by + 2) === 'oak_log', 40000, 250), 'column: ' + column(by + 2))
+    }
+    await release(p)
+  }
+  {
+    // 3. a stump beside a build stays a stump
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    if (check('regrowth: an oak grows for the build-beside-it test', g.ok && g.t.falls, g.ok ? '' : g.why)) {
+      const bx = g.base.position.x, bz = g.base.position.z, by = g.base.position.y
+      const column = y => me.blockAt(new Vec3(bx, y, bz))?.name
+      await axe()
+      await chop(me, me.blockAt(new Vec3(bx, by + 2, bz)))
+      await waitFall(44)
+      await s.ask(`setblock ${bx + 1} ${by + 2} ${bz} minecraft:stone_bricks`, 300) // beside where the trunk goes, not in it
+      await sleep(22000)
+      check('regrowth: with a build touching where it would grow, the stump stays a stump', column(by + 2) !== 'oak_log' && me.blockAt(new Vec3(bx + 1, by + 2, bz))?.name === 'stone_bricks')
+    }
+    await release(p)
+  }
+  {
+    // 4. the per-world off switch and the stump switch: nothing is remembered, nothing grows
+    for (const [label, change] of [['the world is on disabled-worlds', { 'regrowth.stumps': true, 'regrowth.disabled-worlds': '[testworld]' }], ['stumps are off', { 'regrowth.stumps': false }]]) {
+      await config({ 'regrowth.stump-days': 1, ...change })
+      const p = await plot()
+      const g = await grow(p, 'oak', 'oak_log')
+      if (check(`regrowth off (${label}): an oak grows`, g.ok && g.t.falls, g.ok ? '' : g.why)) {
+        const bx = g.base.position.x, bz = g.base.position.z, by = g.base.position.y
+        await axe()
+        await chop(me, me.blockAt(new Vec3(bx, by + 2, bz)))
+        await waitFall(44)
+        await sleep(16000)
+        check(`regrowth off (${label}): the stump stays and nothing is listed`, me.blockAt(new Vec3(bx, by + 2, bz))?.name !== 'oak_log' && !listed('stump').some(l => l.includes(`${bx},${by + 1},${bz}`)))
+      }
+      await release(p)
+    }
+    await config({ 'regrowth.stumps': true, 'regrowth.stump-days': 1, 'regrowth.sapling-days': 30 })
+  }
+  {
+    // 5. saplings sprout along a fall once its logs are cleared, a few at most, and go after their days
+    await config({ 'regrowth.sapling-days': 1 })
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    if (check('regrowth: an oak grows for the sapling test', g.ok && g.t.falls, g.ok ? '' : g.why)) {
+      await axe()
+      await chop(me, g.base)
+      await waitFall(44)
+      const a = await settledAccount(p, 'oak_log')
+      check('regrowth: a ground cut replants one sapling at the base, as before', blocksNear(me, 'oak_sapling', p.c, 4).length === 1)
+      await sleep(8000)
+      check('regrowth: no saplings sprout while the fall lies there', blocksNear(me, 'oak_sapling', p.c, 30).length === 1, 'saplings: ' + blocksNear(me, 'oak_sapling', p.c, 30).length)
+      check('regrowth: the fall is remembered until it is cleared', listed('fall').length >= 1, `${a.blocks} landed as blocks`)
+      await s.ask(`fill ${p.X - 24} ${Y} ${p.Z - 24} ${p.X + 24} ${Y + 4} ${p.Z + 24} minecraft:air replace minecraft:oak_log`, 800)
+      let most = 0
+      const sprouted = await until(() => { most = Math.max(most, blocksNear(me, 'oak_sapling', p.c, 30).length); return most >= 2 }, 20000, 150)
+      check('regrowth: saplings sprout along where it lay (the base one plus one to three more)', sprouted && most <= 4, 'most seen: ' + most)
+      const gone = await until(() => blocksNear(me, 'oak_sapling', p.c, 30).length === 1, 30000, 250)
+      check('regrowth: sprouts that haven\'t grown are removed after their days, the replanted one stays', gone, 'saplings left: ' + blocksNear(me, 'oak_sapling', p.c, 30).length)
+      check('regrowth: the plugin logged no errors', s.exceptions().length === 0, s.exceptions().slice(0, 5).join('\n'))
+    }
+    await release(p)
+    await config({ 'regrowth.stump-days': 1, 'regrowth.sapling-days': 30 })
+    await config()
   }
 }
 

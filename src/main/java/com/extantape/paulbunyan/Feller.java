@@ -9,6 +9,7 @@ import com.extantape.paulbunyan.fall.Landing;
 import com.extantape.paulbunyan.fall.Replanter;
 import com.extantape.paulbunyan.hook.BlockLog;
 import com.extantape.paulbunyan.hook.Protection;
+import com.extantape.paulbunyan.regrow.Regrowth;
 import com.extantape.paulbunyan.tree.Pos;
 import com.extantape.paulbunyan.tree.Scan;
 import com.extantape.paulbunyan.tree.Species;
@@ -59,6 +60,7 @@ public final class Feller {
     private Protection protection;
     private BlockLog blockLog;
     private final Journal journal;
+    private final Regrowth regrowth;
 
     private final Set<String> busy = new HashSet<>();
     private final Map<UUID, Long> fallGrace = new HashMap<>();
@@ -74,28 +76,33 @@ public final class Feller {
         final FallPlan plan;
         final Animation animation;
         final List<LeafDrop> leafDrops;
+        final Species species;
+        final String sprout;
         BukkitTask task;
         int tick;
 
-        Active(Journal.Entry entry, World world, FallPlan plan, Animation animation, List<LeafDrop> leafDrops) {
+        Active(Journal.Entry entry, World world, FallPlan plan, Animation animation, List<LeafDrop> leafDrops, Species species, String sprout) {
             this.entry = entry;
             this.world = world;
             this.plan = plan;
             this.animation = animation;
             this.leafDrops = leafDrops;
+            this.species = species;
+            this.sprout = sprout;
         }
     }
 
     private record LeafDrop(Pos target, Collection<ItemStack> items) {}
 
     public Feller(PaulBunyan plugin, Settings settings, PlacedBlocks placed, Protection protection, BlockLog blockLog,
-                  Journal journal) {
+                  Journal journal, Regrowth regrowth) {
         this.plugin = plugin;
         this.settings = settings;
         this.placed = placed;
         this.protection = protection;
         this.blockLog = blockLog;
         this.journal = journal;
+        this.regrowth = regrowth;
     }
 
     public void reload(Settings settings, Protection protection, BlockLog blockLog) {
@@ -243,8 +250,10 @@ public final class Feller {
             BlockData data = before.get(p);
             logs.add(new Journal.Log(p, data.getAsString(), plan.tipped(p), tipped(data, dir).getAsString()));
         }
-        // A sapling only goes in when the tree was cut at the ground. A stump left behind regrows in a later version.
-        String sapling = groundCut(world, tree) ? sapling(world, tree) : null;
+        // A sapling only goes in when the tree was cut at the ground. A stump left behind grows back by itself (see Regrowth).
+        boolean ground = groundCut(world, tree);
+        String sproutSapling = sapling(world, tree);
+        String sapling = ground ? sproutSapling : null;
         UUID id = UUID.randomUUID();
         Journal.Entry entry = new Journal.Entry(id, world.getName(), player.getUniqueId(), player.getName(),
             settings.landAsItems(), tree.minY(), settings.replant() ? sapling : null, tree.base(), logs, false, 0, List.of());
@@ -279,7 +288,8 @@ public final class Feller {
         world.playSound(Sound.sound(Key.key("block.wood.break"), Sound.Source.BLOCK, 1.2f, 0.55f), stump.x() + 0.5, stump.y() + 1, stump.z() + 0.5);
         world.playSound(Sound.sound(Key.key("block.grass.break"), Sound.Source.BLOCK, 0.8f, 0.7f), stump.x() + 0.5, stump.y() + 3, stump.z() + 0.5);
 
-        Active a = new Active(entry, world, plan, animation, leafDrops);
+        if (!ground) stumpLeft(world, tree);
+        Active a = new Active(entry, world, plan, animation, leafDrops, tree.species(), sproutSapling);
         active.put(id, a);
         if (!animate) {
             land(a);
@@ -291,6 +301,16 @@ public final class Feller {
             else animation.tick(a.tick);
         }, 1L, 1L);
         return true;
+    }
+
+    /** A high cut left logs standing: tell regrowth, with the top log of each trunk column that's still there. */
+    private void stumpLeft(World world, Tree tree) {
+        List<Pos> tops = new ArrayList<>();
+        for (Pos p : tree.base()) {
+            Pos below = p.below();
+            if (Species.ofLog(block(world, below).getType().name()) == tree.species()) tops.add(below);
+        }
+        regrowth.stumpLeft(world, tree.species(), tops);
     }
 
     /** The cut was at the bottom of the trunk: nothing of the tree's own wood is left under it. */
@@ -427,6 +447,7 @@ public final class Feller {
             Journal.Entry done = settle(a.world, a.entry, a.plan.minY(), a.leafDrops, null);
             landed.put(done.id(), done);
             for (Journal.Landed b : done.blocks()) landedAt.put(key(a.world, b.at()), done.id());
+            regrowth.fallLanded(a.world, a.species, a.sprout, done.blocks().stream().map(Journal.Landed::at).toList());
         } finally {
             for (Journal.Log l : a.entry.logs()) busy.remove(key(a.world, l.origin()));
         }
@@ -547,6 +568,7 @@ public final class Feller {
                 Block b = block(world, option.get(i));
                 b.setBlockData(fits.get(i), true);
                 blockLog.placed(who, b.getLocation(), fits.get(i));
+                regrowth.planted(world, option.get(i), sapling.name());
             }
             return;
         }
