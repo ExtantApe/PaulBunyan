@@ -56,5 +56,6 @@ class FellingRulesTest {
     @Test void unknownLevelsAreRefused() {
         assertNull(Danger.Level.parse("hard"));
         assertEquals(Danger.Level.MAX, Danger.Level.parse(" MAX "));
+        assertEquals(Danger.Level.OFF, Danger.Level.parse("false")); // an unquoted off in YAML
     }
 }

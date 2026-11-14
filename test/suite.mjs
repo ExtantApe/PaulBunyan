@@ -9,7 +9,7 @@
 //   "bot on top of the tree" check, which needs a bot to fall, runs on 26.1.2 and 26.2 only.
 // - "Player-placed leaves" are set with persistent=true from the console, which is exactly what the game
 //   stores when a player places leaves. Player-placed logs are placed by a bot.
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { Vec3 } from 'vec3'
 import { blocksNear, bot, check, DEFAULT_CONFIG, freshServer, inv, itemsNear, jar, quit, section, Server, sleep, summary, until } from './harness.mjs'
@@ -21,8 +21,10 @@ const want = n => ONLY.length === 0 || ONLY.includes(n)
 const PHYSICS = MC !== '26.3'
 const Y = -60 // the flat world's grass is at -61
 
+const prismJar = process.env.PB_TEST_JARS && path.join(process.env.PB_TEST_JARS, 'Prism.jar')
+const prism = MC === '26.3' && existsSync(prismJar) // fetch-jars.mjs gets the Prism build listed for 26.3
 const dir = freshServer('suite-' + MC, { paper: jar(`paper-${MC}.jar`),
-  plugins: [jar('ViaVersion.jar'), jar('ViaBackwards.jar'), jar('GriefPrevention.jar'), jar('CoreProtect.jar')] })
+  plugins: [jar('ViaVersion.jar'), jar('ViaBackwards.jar'), jar('GriefPrevention.jar'), jar('CoreProtect.jar'), ...(prism ? [prismJar] : [])] })
 const s = new Server({ dir })
 const cfgFile = path.join(dir, 'plugins/PaulBunyan/config.yml')
 const baseConfig = readFileSync(DEFAULT_CONFIG, 'utf8')
@@ -132,8 +134,12 @@ async function fellAndAccount(p, base, log, t, label, { ticks = 24, bots = [me] 
   await waitFall(ticks)
   const a = await settledAccount(p, log, bots)
   check(`${label}: every log is accounted for (${t.logs})`, a.total === t.logs, JSON.stringify(a))
-  const still = blocksNear(me, log, p.c, 44).map(v => v.toString()).filter(v => origin.includes(v))
-  check(`${label}: nothing is left standing`, still.length === 0, still.join(' '))
+  // A tree falls toward its heavy side now, so a branch of a fallen cherry can land on a spot another log stood on.
+  // What can't happen is a log still standing over the trunk's own footprint: nothing lands there.
+  const lowest = Math.min(...origin.map(v => +v.match(/-?\d+/g)[1]))
+  const footprint = new Set(origin.filter(v => +v.match(/-?\d+/g)[1] === lowest).map(v => { const n = v.match(/-?\d+/g); return n[0] + ',' + n[2] }))
+  const still = blocksNear(me, log, p.c, 44).filter(v => footprint.has(v.x + ',' + v.z) && origin.includes(v.toString())).map(v => v.toString())
+  check(`${label}: nothing is left standing over the trunk`, still.length === 0, still.join(' '))
   check(`${label}: no block displays left behind`, (await displays()) === 0)
   return a
 }
@@ -179,7 +185,8 @@ if (want('mangrove')) {
     await fellAndAccount(p, g.base, 'mangrove_log', g.t, feature)
     const rootsAfter = blocksNear(me, 'mangrove_roots', p.c, 10).length + blocksNear(me, 'muddy_mangrove_roots', p.c, 10).length
     check(`${feature}: the roots stay where they are`, rootsAfter === roots, `${roots} before, ${rootsAfter} after`)
-    const prop = blocksNear(me, 'mangrove_propagule', p.c, 16)
+    // the tree's own hanging propagules are left where they hang, so only the standing ones count as the replanted one
+    const prop = blocksNear(me, 'mangrove_propagule', p.c, 16).filter(v => me.blockAt(v)?.getProperties().hanging !== true)
     const sensible = prop.length === 1 && ['mud', 'muddy_mangrove_roots', 'dirt', 'grass_block', 'moss_block', 'clay'].includes(me.blockAt(prop[0].offset(0, -1, 0))?.name)
     check(`${feature}: one propagule replanted near the trunk, on mud`, sensible,
       prop.map(v => v + ' on ' + me.blockAt(v.offset(0, -1, 0))?.name + ', ' + v.distanceTo(p.c).toFixed(1) + ' from the trunk').join('; ') || 'none within 16')
@@ -469,7 +476,7 @@ if (want('replant')) {
     await config({ 'fall-ticks': 100 })
     const p = await plot()
     const g = await grow(p, 'birch', 'birch_log')
-    await axe(); await chop(me, g.base); await sleep(1000)
+    await axe(); await chop(me, g.base); await sleep(2000) // past the one-second warning, into the fall
     await s.ask(`setblock ${p.X} ${Y} ${p.Z} minecraft:cobblestone`, 200)
     await waitFall(100)
     check('a blocked spot gets no sapling', blocksNear(me, 'birch_sapling', p.c, 3).length === 0)
@@ -487,6 +494,220 @@ if (want('replant')) {
     await axe(); await chop(me, me.blockAt(new Vec3(minX, g.base.position.y, minZ + 1))); await waitFall()
     const n = blocksNear(me, sapling, p.c, 4).length
     check(`${feature} with one corner on stone: ${expect === 0 ? 'no saplings (one alone never grows)' : 'one sapling (grows small)'}`, n === expect, 'found ' + n)
+    await release(p)
+  }
+}
+
+// ---------- felling from the cut ----------
+// A tree built from the console: a straight oak trunk of six logs and natural (non-persistent) leaves packed on
+// one side, so which way it leans is known. The console leaves no record of placing it, so the plugin sees a natural
+// tree, as with /place feature.
+const HEAVY = { east: [-1, 6, -2, 2], west: [-6, 1, -2, 2], north: [-2, 2, -6, 1], south: [-2, 2, -1, 6], none: [-3, 3, -3, 3] }
+async function craft(p, heavy) {
+  const [x0, x1, z0, z1] = HEAVY[heavy]
+  await s.ask(`fill ${p.X} ${Y} ${p.Z} ${p.X} ${Y + 5} ${p.Z} minecraft:oak_log`, 300)
+  await s.ask(`fill ${p.X + x0} ${Y + 3} ${p.Z + z0} ${p.X + x1} ${Y + 5} ${p.Z + z1} minecraft:oak_leaves[persistent=false,distance=1] keep`, 400)
+  await sleep(600)
+  return s.treeCheck(p.X, Y, p.Z)
+}
+/** Which way a fallen tree lies: the side its logs are on, relative to the stump's column. */
+function lies(p, name = 'oak_log') {
+  let sx = 0, sz = 0
+  for (const v of blocksNear(me, name, p.c, 20)) if (!(v.x === p.X && v.z === p.Z)) { sx += v.x - p.X; sz += v.z - p.Z }
+  if (sx === 0 && sz === 0) return 'nowhere'
+  return Math.abs(sx) >= Math.abs(sz) ? (sx > 0 ? 'east' : 'west') : (sz > 0 ? 'south' : 'north')
+}
+async function stand(p, dx, dz, yaw) {
+  await s.ask(`tp Chopper ${p.X + dx + 0.5} ${Y} ${p.Z + dz + 0.5} ${yaw} 10`, 600)
+  await until(() => me.entity.position.distanceTo(new Vec3(p.X + dx, Y, p.Z + dz)) < 3, 5000)
+}
+
+if (want('felling')) {
+  section('Felling from the cut (default config: a one-second warning)')
+  const sounds = []
+  const noted = (name, pos) => sounds.push({ name: String(name), at: Date.now() })
+  me.on('soundEffectHeard', (name, pos) => noted(name, pos))
+  me.on('hardcodedSoundEffectHeard', (id, cat, pos) => noted(id, pos))
+  {
+    // 1. a chop above the base leaves a standing stump, and plants nothing
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    if (check('stump: an oak grows, is natural and has 4 or more logs', g.ok && g.t.falls && g.t.logs >= 4, g.ok ? JSON.stringify(g.t) : g.why)) {
+      const cut = g.base.position.offset(0, 2, 0)
+      const atCut = me.blockAt(cut)
+      await axe()
+      await chop(me, atCut)
+      await waitFall(44)
+      const a = await settledAccount(p, 'oak_log')
+      const bx = g.base.position.x, bz = g.base.position.z, by = g.base.position.y
+      const column = y => me.blockAt(new Vec3(bx, y, bz))?.name
+      check('stump: the two logs below the cut stand', column(by) === 'oak_log' && column(by + 1) === 'oak_log', `${column(by)}, ${column(by + 1)}`)
+      check('stump: the cut log and everything above it is gone from the trunk', column(by + 2) !== 'oak_log' && blocksNear(me, 'oak_log', new Vec3(bx, by + 4, bz), 6).filter(v => v.x === bx && v.z === bz && v.y >= by + 2).length === 0)
+      check(`stump: every log is accounted for, the stump's included (${g.t.logs})`, a.total === g.t.logs, JSON.stringify(a))
+      check('stump: no sapling is planted', blocksNear(me, 'oak_sapling', p.c, 8).length === 0)
+      check('stump: no block displays left behind', (await displays()) === 0)
+    }
+    await release(p)
+  }
+  {
+    // 2. a chop at the ground fells everything and replants
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    await axe()
+    await chop(me, g.base)
+    await waitFall(44)
+    const a = await settledAccount(p, 'oak_log')
+    const bp = g.base.position
+    check('ground chop: no log is left in the trunk column', blocksNear(me, 'oak_log', p.c, 8).filter(v => v.x === bp.x && v.z === bp.z).length === 0)
+    check(`ground chop: every log is accounted for (${g.t.logs})`, a.total === g.t.logs, JSON.stringify(a))
+    check('ground chop: one sapling replanted', blocksNear(me, 'oak_sapling', p.c, 4).length === 1)
+    await release(p)
+  }
+  // 3. toward the heavy side, whichever way the chopper faces
+  for (const [heavy, dx, dz, yaw, facing] of [['west', 0, 2, 180, 'north'], ['north', 2, 0, 90, 'west'], ['east', -2, 0, 180, 'north'], ['south', 0, -2, 90, 'west']]) {
+    const p = await plot()
+    const t = await craft(p, heavy)
+    if (!check(`lean ${heavy}: the built tree is seen as natural`, t.falls, JSON.stringify(t))) { await release(p); continue }
+    await stand(p, dx, dz, yaw)
+    await axe()
+    await chop(me, me.blockAt(new Vec3(p.X, Y, p.Z)))
+    await waitFall(44)
+    const way = lies(p)
+    check(`lean ${heavy}: falls ${heavy} with the bot facing ${facing}`, way === heavy, `fell ${way}`)
+    await release(p)
+  }
+  for (const [yaw, facing, dx, dz] of [[180, 'north', 0, 2], [-90, 'east', -2, 0]]) {
+    const p = await plot()
+    const t = await craft(p, 'none')
+    if (!check(`lean none (${facing}): the balanced tree is seen as natural`, t.falls, JSON.stringify(t))) { await release(p); continue }
+    await stand(p, dx, dz, yaw)
+    await axe()
+    await chop(me, me.blockAt(new Vec3(p.X, Y, p.Z)))
+    await waitFall(44)
+    const way = lies(p)
+    check(`a tree standing straight falls away from the chopper (facing ${facing})`, way === facing, `fell ${way}`)
+    await release(p)
+  }
+  {
+    // 4. the fall starts about warning-ticks after the chop, with creaks first
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    const watch = g.base.position.offset(0, 3, 0)
+    sounds.length = 0
+    await axe()
+    await chop(me, me.blockAt(g.base.position.offset(0, 1, 0)))
+    const t0 = Date.now()
+    let standingAt300 = null, goneAt = null
+    while (Date.now() - t0 < 6000) {
+      const standing = me.blockAt(watch)?.name === 'oak_log'
+      if (Date.now() - t0 >= 300 && standingAt300 === null) standingAt300 = standing
+      if (!standing) { goneAt = Date.now() - t0; break }
+      await sleep(20)
+    }
+    check('warning: the trunk above the cut still stands 300 ms after the chop', standingAt300 === true, `standing at 300 ms: ${standingAt300}`)
+    check('warning: it comes down about a second after the chop (20 ticks)', goneAt !== null && goneAt >= 750 && goneAt <= 1900, `gone after ${goneAt} ms`)
+    // Through ViaVersion the bot gets sound ids shifted onto other names (a creak arrives as "crafter.fail"), so what's
+    // checked is the pattern: the chop's own sounds, then pairs about 7 ticks apart (0.35 s) until the tree goes.
+    const heard = sounds.filter(x => x.at < t0 + (goneAt ?? 0))
+    const span = heard.length ? heard[heard.length - 1].at - heard[0].at : 0
+    console.log(`  sounds heard before the fall: ${heard.length} over ${span} ms (${[...new Set(sounds.map(x => x.name))].join(', ')}; names are shifted by ViaVersion)`)
+    check('warning: the bot hears repeated creaks spread over the wait before the tree goes', heard.length >= 6 && span >= 500, JSON.stringify(heard.slice(0, 10)))
+    await waitFall(44)
+    await release(p)
+    await config({ 'warning-ticks': 0 })
+    const q = await plot()
+    const h = await grow(q, 'oak', 'oak_log')
+    const w2 = h.base.position.offset(0, 3, 0)
+    await axe()
+    await chop(me, me.blockAt(h.base.position.offset(0, 1, 0)))
+    const u0 = Date.now()
+    let gone2 = null
+    while (Date.now() - u0 < 4000) { if (me.blockAt(w2)?.name !== 'oak_log') { gone2 = Date.now() - u0; break } await sleep(20) }
+    check('warning-ticks 0: the tree falls at once', gone2 !== null && gone2 < 600, `gone after ${gone2} ms`)
+    await waitFall(24)
+    await config()
+    await release(q)
+  }
+}
+
+// ---------- fall-danger ----------
+// The trunk is cut at Y+2 so its logs come down through the head and feet of a bot at ground level: a log cut at
+// the ground lands at foot height only. The bots can't move on 26.3, so they stand where /tp puts them (the victim
+// two blocks short of where the trunk ends, on the line the tree falls along).
+if (want('danger')) {
+  section('fall-danger')
+  const victim = await bot('Standby', { physics: PHYSICS })
+  await s.ask('gamemode survival Standby', 200)
+  victim.died = 0; victim.flung = 0
+  victim.on('death', () => victim.died++)
+  // a bot's own movement is its client's business, so the fling is read from the velocity packet the server sends it
+  victim._client.on('entity_velocity', d => { if (d.entityId === victim.entity.id && Math.hypot(d.velocity.x, d.velocity.z) > 0.5) victim.flung++ })
+  async function scene(label, cfg, cutDy, mode = 'survival') {
+    await config(cfg)
+    const p = await plot()
+    const t = await craft(p, 'east')
+    check(`${label}: built tree is natural`, t.falls, JSON.stringify(t))
+    await s.ask(`gamemode ${mode} Standby`, 200)
+    await s.ask(`tp Standby ${p.X + 3.5} ${Y} ${p.Z + 0.5}`, 800)
+    await until(() => victim.entity && victim.entity.position.distanceTo(new Vec3(p.X + 3.5, Y, p.Z + 0.5)) < 2, 5000)
+    victim.died = 0; victim.flung = 0; victim.hurt = 0
+    await s.ask('effect clear Standby', 100)
+    await s.ask('attribute Standby minecraft:max_health base set 20', 100)
+    await s.ask('effect give Standby minecraft:saturation 30 5 true', 100)
+    await stand(p, -2, 0, -90)
+    await axe()
+    await chop(me, me.blockAt(new Vec3(p.X, Y + cutDy, p.Z)))
+    await waitFall(44)
+    await sleep(1500)
+    const out = { p, flung: victim.flung, health: victim.health, hurt: victim.hurt, died: victim.died }
+    await release(p)
+    return out
+  }
+  {
+    const r = await scene('danger off', {}, 2)
+    check('fall-danger off: a survival bot where the trunk lands keeps full health', r.died === 0 && r.hurt === 0 && r.health === 20, `health ${r.health}, hurt ${r.hurt}, died ${r.died}`)
+    check('fall-danger off: it was flung clear of the trunk', r.flung >= 1, `${r.flung} velocity packets over 0.5`)
+  }
+  {
+    const r = await scene('danger max, one world', { 'fall-danger-worlds': '{ testworld: max }' }, 2)
+    check('fall-danger max in one world: a survival bot under the trunk dies', r.died === 1, `health ${r.health}, hurt ${r.hurt}, died ${r.died}`)
+  }
+  {
+    const r = await scene('danger max, feet only', { 'fall-danger': 'max' }, 0)
+    check('fall-danger max: a log landing at foot height deals 4', r.died === 0 && r.hurt === 4, `health ${r.health}, hurt ${r.hurt}, died ${r.died}`)
+  }
+  {
+    const r = await scene('danger max, creative', { 'fall-danger': 'max' }, 2, 'creative')
+    check('fall-danger max: a creative bot is never hurt', r.died === 0 && r.hurt === 0, `health ${r.health}, hurt ${r.hurt}, died ${r.died}`)
+  }
+  {
+    const r = await scene('danger max, world set to off', { 'fall-danger': 'max', 'fall-danger-worlds': '{ testworld: off }' }, 2)
+    check('a world set to off overrides fall-danger max', r.died === 0 && r.hurt === 0, `health ${r.health}, hurt ${r.hurt}, died ${r.died}`)
+  }
+  await config({ 'fall-danger': 'off', 'fall-danger-worlds': '{}' })
+  await s.ask('gamemode survival Standby', 200)
+  await quit(victim)
+}
+
+// ---------- Prism ----------
+if (want('prism')) {
+  section('Prism')
+  if (!prism) console.log('  skip Prism: it is not installed (run test/fetch-jars.mjs)')
+  else {
+    check('PaulBunyan found Prism and records in it', s.all.some(l => /Recording in Prism too/.test(l)))
+    await s.ask('op Chopper', 300)
+    const p = await plot()
+    const g = await grow(p, 'oak', 'oak_log')
+    await axe()
+    await fellAndAccount(p, g.base, 'oak_log', g.t, 'prism fall')
+    await sleep(8000) // Prism writes in batches
+    await s.ask(`tp Chopper ${p.X + 0.5} ${Y} ${p.Z + 0.5}`, 600)
+    me.chatLog.length = 0
+    me.chat('/prism lookup a:block-break r:40 since:10m')
+    await sleep(4000)
+    const out = me.chatLog.join('\n')
+    const broke = (out.match(/oak_log/gi) || []).length
+    check('Prism lookup shows the fall\'s logs broken by the chopping bot', /Chopper/.test(out) && broke >= 1, out.slice(0, 800))
     await release(p)
   }
 }

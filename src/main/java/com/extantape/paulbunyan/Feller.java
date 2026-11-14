@@ -222,8 +222,9 @@ public final class Feller {
 
     private boolean start(Player player, World world, Tree tree, Pos chopped, Map<Pos, BlockData> before, Direction dir, int wear) {
         busy.remove(key(world, chopped));
-        // The break went through, and nothing else changed the tree since.
-        if (!block(world, chopped).getType().isAir()) return false;
+        // The break went through, and nothing else changed the tree since. Something else may have filled the cut during
+        // the warning (water flowing in, say); that doesn't stop the fall, only the log still being there does.
+        if (block(world, chopped).getBlockData().equals(before.get(chopped))) return false;
         for (Pos p : tree.logs()) {
             if (p.equals(chopped)) continue;
             if (!block(world, p).getBlockData().equals(before.get(p))) return false;

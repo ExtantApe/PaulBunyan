@@ -1,6 +1,6 @@
 // Downloads the test servers' jars into a folder and checks each against the hash its publisher lists:
 // the latest stable Paper 26.1.2, 26.2 and 26.3 builds, and from Modrinth ViaVersion and ViaBackwards
-// (the bots speak 1.21.11), GriefPrevention and CoreProtect.
+// (the bots speak 1.21.11), GriefPrevention, CoreProtect and Prism.
 // Usage: node test/fetch-jars.mjs <folder>
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -33,6 +33,7 @@ for (const [project, name, pick] of [
   ['viabackwards', 'ViaBackwards.jar', { game: '26.3' }],
   ['griefprevention', 'GriefPrevention.jar', { version: '16.18.7' }], // the one release listed for 26.1.2 to 26.3
   ['coreprotect', 'CoreProtect.jar', { version: '24.1' }],
+  ['prism', 'Prism.jar', { game: '26.3' }], // 4.5, the first 4.x listed for 26.3
 ]) {
   const versions = await json(`https://api.modrinth.com/v2/project/${project}/version`)
   const v = pick.version ? versions.find(x => x.version_number === pick.version)

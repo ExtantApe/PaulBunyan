@@ -14,7 +14,7 @@ public final class Danger {
         public static Level parse(String s) {
             if (s == null) return null;
             return switch (s.trim().toLowerCase(Locale.ROOT)) {
-                case "off" -> OFF;
+                case "off", "false" -> OFF; // YAML reads an unquoted off as false
                 case "max" -> MAX;
                 default -> null;
             };

@@ -120,6 +120,8 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 - GriefPrevention claims, a bot under the fall, a bot on top of the tree, and a boat
 - replanting on dirt, grass, mud, moss and stone, a blocked spot, and 2x2 trees with one bad corner
 - a chunk unloading mid-fall, a normal restart, and `kill -9` before and after a save
+- felling from the cut: a chop above the base leaves a stump and plants nothing, a ground chop replants, trees lean toward their heavy side, the fall starts after the warning, and fall-danger off, max, per world and in creative
+- Prism lookups of a fall (26.3 only, written but not yet run)
 - the size cap, ten bots felling at once (average tick under 50 ms), CoreProtect lookups, creative mode, sneaking and axe wear
 
 ```sh
@@ -129,7 +131,7 @@ node test/fetch-jars.mjs /tmp/pb-jars
 PB_TEST_WORK=/tmp/pb-work PB_TEST_JARS=/tmp/pb-jars PB_TEST_JAVA=<path to Java 25> node test/suite.mjs 26.3
 ```
 
-`fetch-jars.mjs` downloads Paper, ViaVersion, ViaBackwards, GriefPrevention and CoreProtect and checks each against the hash its publisher lists. The suite writes `eula=true` into the server it creates, which accepts Mojang's EULA for it, so only run it if you accept that. It deletes the server when it's done.
+`fetch-jars.mjs` downloads Paper, ViaVersion, ViaBackwards, GriefPrevention, CoreProtect and Prism and checks each against the hash its publisher lists. The suite writes `eula=true` into the server it creates, which accepts Mojang's EULA for it, so only run it if you accept that. It deletes the server when it's done.
 
 What the bots can't show:
 
