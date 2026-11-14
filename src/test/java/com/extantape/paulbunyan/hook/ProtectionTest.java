@@ -56,4 +56,14 @@ class ProtectionTest {
         assertTrue(p.present());
         assertFalse(p.mayBreak(stub(Player.class, true), null));
     }
+
+    @Test void noGriefPreventionMeansNothingIsClaimed() {
+        assertFalse(new Protection(null, log).claimed(null));
+    }
+
+    @Test void aGriefPreventionThatCantBeAskedCountsEverythingAsClaimed() {
+        // so nothing grows into what might be somebody's claim
+        assertTrue(new Protection(stub(Plugin.class, true), log).claimed(null));
+        assertTrue(new Protection(stub(Plugin.class, false), log).claimed(null));
+    }
 }

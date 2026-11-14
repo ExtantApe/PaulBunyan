@@ -55,6 +55,17 @@ public final class BlockLog {
         prism.placed(who, at);
     }
 
+    /** What the plugin itself did (a tree grown from a stump): CoreProtect lists it as #paulbunyan, Prism as PaulBunyan. */
+    public void removedByPlugin(Location at, BlockData data) {
+        call(removal, "#paulbunyan", at, data);
+        prism.broke("PaulBunyan", at);
+    }
+
+    public void placedByPlugin(Location at, BlockData data) {
+        call(placement, "#paulbunyan", at, data);
+        prism.placed("PaulBunyan", at);
+    }
+
     private void call(Method m, String who, Location at, BlockData data) {
         if (api == null) return;
         try {

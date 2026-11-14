@@ -2,6 +2,26 @@
 
 Kept by this repo's owning session (Minecraft: Plugins Lead), per `~/Code/CLAUDE.md`, "Test self-audits". Newest first.
 
+## 2026-11-14: regrowth (0.4.0)
+
+What regrowth promises, and what proves it. "Unit" is `src/test`; "live" is the `regrowth` section of `test/suite.mjs` on Paper 26.1.2, with an in-game day shortened to 5 seconds.
+
+### Covered
+
+- **A stump grows into a wild tree, the same one for the same seed:** unit `GrowerTest` (deterministic, differs by seed, own wood and leaves, bounds, every log joined to the stump, twists, 2x2 trunks); live "the stump grows into a tree after its time", "a natural tree the plugin would fell".
+- **It never replaces anything but air and small plants, and never grows into a claim, a build, a standing player or an unloaded chunk:** unit `GrowthTest` (each refusal, a positive control, a 300-world property test that nothing placed is on a taken block, a replay after a crash); live "a block in the trunk's way is not replaced", "a build touching it keeps it a stump".
+- **The list is saved atomically and survives bad lines:** unit `StoreTest`.
+- **Everything is switchable, per world too:** unit `SettingsTest`; live "regrowth off" for a disabled world and for `stumps: false`.
+- **Saplings sprout along a cleared fall, a few at most, and go after their days; the base sapling stays:** unit `SproutsTest`; live "saplings sprout along where it lay", "removed after their days".
+- **GriefPrevention that can't be asked counts as a claim:** unit `ProtectionTest`.
+- **Rewild gets the saplings and grown trees, and a failure reaches Rewild so it resets nothing:** unit `RewildKeepsTest` against stand-ins shaped like Rewild's interface.
+
+### Skipped, with reasons
+
+- **A real GriefPrevention claim stopping growth, live.** The refusal is the same code path as the unit-tested one, and the claim lookup is reflection on GriefPrevention's `getClaimAt`; the live check would be the first to prove that reflection works. Left for the next live session.
+- **Rewild itself.** Needs Rewild's jar and an admin step (`/rewild plugins`); the provider is tested against stand-ins.
+- **A crash while a tree is half grown.** The replay is unit-tested (blocks already placed are accepted), but no live `kill -9` during growth.
+- **26.2 and 26.3.** Regrowth ran on 26.1.2 only.
 ## 2026-11-10: first full audit (at 0.1.0)
 
 What PaulBunyan promises (README and `docs/decisions.md`), and what proves it. "Unit" is `src/test`; "live" is `test/suite.mjs` on throwaway Paper 26.1.2, 26.2 and 26.3 servers with bots and GriefPrevention.

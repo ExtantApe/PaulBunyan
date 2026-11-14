@@ -14,8 +14,28 @@ long-drop:
 max-logs: 250
 max-leaves: 3000
 
-# Plant a sapling where the tree stood, free, if one can grow there.
+# Plant a sapling where the tree stood, free, if one can grow there. Only for a cut at the ground: a stump regrows
+# by itself (see regrowth below).
 replant: true
+
+# Stumps and fallen trees grow back, in in-game days (24000 ticks; a day counts only while the world is loaded).
+regrowth:
+  # A stump left by a high cut grows into a wild, one-off tree of its own kind. It grows only where every block it
+  # needs is air or a small plant, outside any claim and clear of builds, and waits and tries again otherwise.
+  stumps: true
+  # About this many days after the cut, give or take half again (so a forest doesn't all grow at once).
+  stump-days: 3
+  # Once a fallen tree's logs are cleared, saplings of its kind may sprout where it lay, on grass or dirt outside claims.
+  saplings: true
+  # The most places that sprout per tree. Dark and pale oak sprout one square of four, or none.
+  sapling-max: 3
+  # A sapling that hasn't grown after this many days is removed.
+  sapling-days: 30
+  # Worlds where nothing regrows, by folder name. (Trees there still fall unless the main disabled-worlds list names the world.)
+  disabled-worlds: []
+  # With Rewild installed, tell it which saplings and grown trees to keep. Rewild only listens once an admin
+  # respects PaulBunyan with /rewild plugins.
+  rewild-link: true
 
 # Huge crimson and warped fungi fall too.
 nether-fungi: true

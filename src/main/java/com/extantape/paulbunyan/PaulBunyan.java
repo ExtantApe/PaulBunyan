@@ -3,6 +3,9 @@ package com.extantape.paulbunyan;
 import com.extantape.paulbunyan.fall.Journal;
 import com.extantape.paulbunyan.hook.BlockLog;
 import com.extantape.paulbunyan.hook.Protection;
+import com.extantape.paulbunyan.regrow.Regrowth;
+import com.extantape.paulbunyan.regrow.RewildKeeps;
+import com.extantape.paulbunyan.PlacedBlocks;
 import com.extantape.paulbunyan.tree.Pos;
 import com.extantape.paulbunyan.tree.Scan;
 import com.mojang.brigadier.Command;
@@ -25,6 +28,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 /** Chop a natural tree with an axe and it falls over. */
 public final class PaulBunyan extends JavaPlugin {
     private Feller feller;
+    private Regrowth regrowth;
 
     @Override
     public void onEnable() {
@@ -37,8 +41,16 @@ public final class PaulBunyan extends JavaPlugin {
             getLogger().severe("Can't create the fall journal folder, so trees won't fall: " + e);
             return;
         }
-        feller = new Feller(this, settings, new PlacedBlocks(this), new Protection(getLogger()), new BlockLog(getLogger()), journal);
+        PlacedBlocks placed = new PlacedBlocks(this);
+        Protection protection = new Protection(getLogger());
+        BlockLog blockLog = new BlockLog(getLogger());
+        regrowth = new Regrowth(getDataFolder().toPath(), getLogger(), placed, () -> feller.settings(), protection, blockLog);
+        feller = new Feller(this, settings, placed, protection, blockLog, journal, regrowth);
         feller.replay();
+        RewildKeeps keeps = new RewildKeeps(this, w -> List.of(), w -> regrowth.keeps(w));
+        getServer().getPluginManager().registerEvents(keeps, this);
+        keeps.start();
+        getServer().getScheduler().runTaskTimer(this, regrowth::sweep, Regrowth.SWEEP_TICKS, Regrowth.SWEEP_TICKS);
         getServer().getPluginManager().registerEvents(new ChopListener(feller), this);
         if (getConfig().getBoolean("gsit-sideways-logs-only", true)) com.extantape.paulbunyan.hook.SittingLogs.register(this, getLogger());
         getServer().getScheduler().runTaskTimer(this, feller::forgetOldFalls, 20L * 60, 20L * 60);
@@ -58,11 +70,15 @@ public final class PaulBunyan extends JavaPlugin {
     @Override
     public void onDisable() {
         if (feller != null) feller.finishAll();
+        if (regrowth != null) regrowth.flush();
     }
 
     private int reload(CommandContext<CommandSourceStack> c) {
         reloadConfig();
-        feller.reload(Settings.read(getConfig(), getLogger()), new Protection(getLogger()), new BlockLog(getLogger()));
+        Protection protection = new Protection(getLogger());
+        BlockLog blockLog = new BlockLog(getLogger());
+        feller.reload(Settings.read(getConfig(), getLogger()), protection, blockLog);
+        regrowth.reload(protection, blockLog);
         c.getSource().getSender().sendMessage(Component.text("PaulBunyan reloaded.", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }

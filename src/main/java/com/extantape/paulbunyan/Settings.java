@@ -20,7 +20,20 @@ public record Settings(
     int warningTicks,
     com.extantape.paulbunyan.fall.Danger.Level fallDanger,
     java.util.Map<String, com.extantape.paulbunyan.fall.Danger.Level> fallDangerWorlds,
-    com.extantape.paulbunyan.fall.Landing.Drops drops) {
+    com.extantape.paulbunyan.fall.Landing.Drops drops,
+    Regrowth regrowth) {
+
+    /** How stumps and fallen trees grow back. */
+    public record Regrowth(boolean stumps, int stumpDays, boolean saplings, int saplingMax, int saplingDays,
+                           Set<String> disabledWorlds, boolean rewildLink) {
+        public boolean stumpsIn(String world) {
+            return stumps && !disabledWorlds.contains(world);
+        }
+
+        public boolean saplingsIn(String world) {
+            return saplings && !disabledWorlds.contains(world);
+        }
+    }
 
     /** How dangerous a fall is in this world. */
     public com.extantape.paulbunyan.fall.Danger.Level danger(String world) {
@@ -61,7 +74,11 @@ public record Settings(
             new TreeScanner.Limits(maxLogs, maxLeaves, TreeScanner.Limits.DEFAULT.minLeaves(), TreeScanner.Limits.DEFAULT.maxStrays()),
             c.getBoolean("replant", true), c.getBoolean("nether-fungi", true), c.getBoolean("creative-fells", false),
             fallTicks, maxAnimated, disabled, warning, level, perWorld,
-            new com.extantape.paulbunyan.fall.Landing.Drops(itemsAfter, sticksAfter));
+            new com.extantape.paulbunyan.fall.Landing.Drops(itemsAfter, sticksAfter),
+            new Regrowth(c.getBoolean("regrowth.stumps", true), clamp(c.getInt("regrowth.stump-days", 3), 1, 365, "regrowth.stump-days", log),
+                c.getBoolean("regrowth.saplings", true), clamp(c.getInt("regrowth.sapling-max", 3), 0, 8, "regrowth.sapling-max", log),
+                clamp(c.getInt("regrowth.sapling-days", 30), 1, 365, "regrowth.sapling-days", log),
+                new HashSet<>(c.getStringList("regrowth.disabled-worlds")), c.getBoolean("regrowth.rewild-link", true)));
     }
 
     private static int clamp(int v, int min, int max, String key, Logger log) {
