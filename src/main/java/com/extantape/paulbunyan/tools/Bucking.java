@@ -59,6 +59,26 @@ public final class Bucking {
         return out;
     }
 
+    /** The log's axis as 'x', 'y' or 'z', or 0 for a block that has none. */
+    public static char axis(Block b) {
+        if (!(b.getBlockData() instanceof Orientable o)) return 0;
+        return o.getAxis() == Axis.X ? 'x' : o.getAxis() == Axis.Y ? 'y' : 'z';
+    }
+
+    /** A fallen section: {@code start} and the joined fallen logs of its kind along the same trunk, at most {@code max}. */
+    public static List<Block> section(Block start, FallenLogs fallen, int max) {
+        List<Block> out = new ArrayList<>();
+        char axis = axis(start);
+        if (axis == 0 || !fallen.has(start)) return out;
+        out.add(start);
+        Material type = start.getType();
+        for (Pos p : line(new Pos(start.getX(), start.getY(), start.getZ()), axis, q -> {
+            Block b = start.getWorld().getBlockAt(q.x(), q.y(), q.z());
+            return b.getType() == type && fallen.has(b);
+        }, max - 1)) out.add(start.getWorld().getBlockAt(p.x(), p.y(), p.z()));
+        return out;
+    }
+
     /** Called as {@code broken}, a fallen log, is broken with a special axe. */
     public void buck(Player player, Block broken, int logs) {
         if (logs <= 1 || !(broken.getBlockData() instanceof Orientable o)) return;

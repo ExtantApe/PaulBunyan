@@ -99,6 +99,99 @@ public final class Textures {
         return draw(HEAD, Map.of('o', c[0], 's', c[1], 'h', c[2], 'l', c[3]));
     }
 
+    static final String[] SMALL_WEDGE = {
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "..oo............",
+        "..oloo..........",
+        "..ollhoo........",
+        "..olhhhhoo......",
+        "..ohhhhhhsoo....",
+        "..ohhhhhssssoo..",
+        "..oooooooooooooo",
+        "................",
+        "................",
+        "................",
+        "................",
+    };
+
+    static final String[] LARGE_WEDGE = {
+        "................",
+        "................",
+        ".oo.............",
+        ".oloo...........",
+        ".ollhoo.........",
+        ".olhhhhoo.......",
+        ".olhhhhhhoo.....",
+        ".ohhhhhhhhsoo...",
+        ".ohhhhhhhsssso..",
+        ".ohhhhhhssssssoo",
+        ".ohhhhhsssssssso",
+        ".oooooooooooooo.",
+        "................",
+        "................",
+        "................",
+        "................",
+    };
+
+    static final String[] CROSSCUT_SAW = {
+        "................",
+        "................",
+        "................",
+        ".dd..........dd.",
+        ".dw..........dw.",
+        ".dw..........dw.",
+        ".dwolllllllllow.",
+        ".dwohhhhhhhhhow.",
+        ".dwohhhhhhhhhsw.",
+        ".dd.o.o.o.o.o.d.",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+    };
+
+    static final String[] PEAVEY = {
+        "................",
+        "................",
+        "............ol..",
+        "............lo..",
+        "...........ho...",
+        "...........wd...",
+        "..........wd....",
+        "........owd.....",
+        "......ohwd......",
+        ".....ohwd.......",
+        ".....ohd........",
+        ".....wdol.......",
+        "....wd..........",
+        "...wd...........",
+        "..dd............",
+        "................",
+    };
+
+    private static final int[] IRON = {0x353535, 0x9A9A9A, 0xD0D0D0, 0xFFFFFF};
+    private static final int[] ORANGE = {0x6B2E05, 0xC2560E, 0xF07A1A, 0xFFB070};
+    private static final int[] YELLOW = {0x6B5005, 0xC9A00E, 0xF2CC1A, 0xFFF08A};
+    private static final int[] HANDLE_WOOD = {0x5E4425, 0xB8985F};
+
+    /** The wedges (bright plastic, as real ones are), the saw and the peavey. */
+    public static BufferedImage tool(Tool t) {
+        String[] mask = switch (t) {
+            case SMALL_WEDGE -> SMALL_WEDGE;
+            case LARGE_WEDGE -> LARGE_WEDGE;
+            case CROSSCUT_SAW -> CROSSCUT_SAW;
+            case PEAVEY -> PEAVEY;
+        };
+        int[] m = t == Tool.SMALL_WEDGE ? ORANGE : t == Tool.LARGE_WEDGE ? YELLOW : IRON;
+        return draw(mask, Map.of('o', m[0], 's', m[1], 'h', m[2], 'l', m[3], 'd', HANDLE_WOOD[0], 'w', HANDLE_WOOD[1]));
+    }
+
     static BufferedImage draw(String[] mask, Map<Character, Integer> colors) {
         BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
         for (int y = 0; y < 16; y++)

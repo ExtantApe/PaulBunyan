@@ -39,6 +39,15 @@ public final class ChopListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
+        try {
+            handleBreak(event);
+        } finally {
+            // After the chop has had its chance to use a wedge in this log; otherwise it comes back now.
+            feller.wedgeGone(event.getBlock());
+        }
+    }
+
+    private void handleBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         feller.landedBlockGone(block);
         Species species = Species.ofLog(block.getType().name());
@@ -133,6 +142,7 @@ public final class ChopListener implements Listener {
     }
 
     private void forget(Block b) {
+        feller.wedgeGone(b);
         feller.landedBlockGone(b);
         feller.fallen().clear(b);
         if (Species.ofLog(b.getType().name()) != null || isCap(b.getType())) feller.placed().clear(b);

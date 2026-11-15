@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0
+
+Real felling, last part (K597): the felling wedge, crosscut saw and peavey. This finishes the felling plan.
+
+- Felling wedges, small for one-block trunks and large for 2x2: set one in the side of a trunk and the tree falls straight away from it. It comes back to whoever set it.
+- Crosscut saw: hold right-click to saw through a fallen section, or twice to fell a standing tree. Two sawyers on opposite sides, taking turns in rhythm, saw a whole trunk or fell a tree in a few seconds.
+- Peavey: roll a fallen section one block sideways across its length, away from you.
+- The resource pack draws all four. `/paulbunyan give <player> tool <tool>` gives one.
+- None of PaulBunyan's tools or special axes go into vanilla recipes. Before, two special axes in a crafting grid made a plain iron axe.
+
+Tested: 124 unit tests, and bots on throwaway Paper servers: the new tools, special axes, fallen logs, terrain, one-piece, landing, species, felling and players on 26.1.2 (215 of 215), and the new tools, special axes and fallen logs on 26.3 (40 of 40; the wedge, peavey and crafting checks need a bot that can use a block, so they run on 26.1.2 and 26.2 only). Not tested: 26.2, and a real game client, so the pictures, the saw's motion and how two real players keep the rhythm are unseen.
+
 ## 0.8.0
 
 Real felling, seventh part (K597): special axes.
