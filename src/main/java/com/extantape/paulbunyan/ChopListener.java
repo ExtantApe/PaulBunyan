@@ -41,7 +41,10 @@ public final class ChopListener implements Listener {
         boolean tracked = species != null || isCap(block.getType());
         boolean wasPlaced = tracked && feller.placed().isPlaced(block);
         if (wasPlaced) feller.placed().clear(block);
-        if (species == null || wasPlaced) return;
+        // A fallen log lies where the tree came down. It's bucked one log at a time and never falls again.
+        boolean wasFallen = species != null && feller.fallen().has(block);
+        if (wasFallen) feller.fallen().clear(block);
+        if (species == null || wasPlaced || wasFallen) return;
 
         Player player = event.getPlayer();
         Settings s = feller.settings();
@@ -71,13 +74,17 @@ public final class ChopListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         Block b = event.getBlockPlaced();
+        feller.fallen().clear(b);
         if (Species.ofLog(b.getType().name()) != null || isCap(b.getType())) feller.placed().mark(b);
     }
 
     /** A tree grown from a sapling is natural, even where a placed log once stood. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onGrow(StructureGrowEvent event) {
-        for (BlockState s : event.getBlocks()) feller.placed().clear(s.getBlock());
+        for (BlockState s : event.getBlocks()) {
+            feller.placed().clear(s.getBlock());
+            feller.fallen().clear(s.getBlock());
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -97,6 +104,7 @@ public final class ChopListener implements Listener {
 
     private void forget(Block b) {
         feller.landedBlockGone(b);
+        feller.fallen().clear(b);
         if (Species.ofLog(b.getType().name()) != null || isCap(b.getType())) feller.placed().clear(b);
     }
 

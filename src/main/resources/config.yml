@@ -13,6 +13,10 @@ one-piece: true
 # drop it tips past flat before it lands. It always comes to rest flat on the block grid. false tips every tree to flat.
 terrain: true
 
+# Logs a fall leaves lying are joined, so any tool breaks them one log at a time, slower than a loose log: this
+# percent of normal speed. 100 breaks them like any other log. Fallen logs never fall again when chopped.
+fallen-log-speed: 50
+
 # A log that drops further than items-after blocks as it lands breaks into a log item, and further than sticks-after
 # splinters into two sticks. A log that lands inside the ground, on a slope it hit, is crushed into a log item.
 long-drop:
