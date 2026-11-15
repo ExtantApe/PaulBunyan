@@ -58,6 +58,15 @@ public final class PackBuilder {
             files.put("assets/paulbunyan/textures/item/axe/head/" + h.id() + ".png", png(Textures.head(h)));
         }
         files.put("assets/paulbunyan/items/axe.json", text(axeItem()));
+        for (Tool t : Tool.values()) {
+            files.put("assets/paulbunyan/items/" + t.id() + ".json", text("""
+                {
+                  "model": { "type": "minecraft:model", "model": "paulbunyan:item/%s" }
+                }
+                """.formatted(t.id())));
+            files.put("assets/paulbunyan/models/item/" + t.id() + ".json", model("item/" + t.id()));
+            files.put("assets/paulbunyan/textures/item/" + t.id() + ".png", png(Textures.tool(t)));
+        }
         byte[] zip = zip(files);
         return new Built(zip, sha1(zip));
     }

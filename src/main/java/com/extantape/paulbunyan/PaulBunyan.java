@@ -32,6 +32,7 @@ public final class PaulBunyan extends JavaPlugin {
     private DigSpeed digSpeed;
     private com.extantape.paulbunyan.tools.SpecialAxes axes;
     private com.extantape.paulbunyan.tools.Perks perks;
+    private com.extantape.paulbunyan.tools.Wedges wedges;
     private java.nio.file.Path packFile;
     private String packSha1;
 
@@ -66,6 +67,15 @@ public final class PaulBunyan extends JavaPlugin {
             perks = new com.extantape.paulbunyan.tools.Perks(this);
             feller.tools(axes, perks);
             axes.registerRecipes();
+            wedges = new com.extantape.paulbunyan.tools.Wedges(this, axes);
+            wedges.feller(feller);
+            feller.wedges(wedges);
+            var pm = getServer().getPluginManager();
+            pm.registerEvents(wedges, this);
+            pm.registerEvents(new com.extantape.paulbunyan.tools.Saw(axes, fallen, feller), this);
+            pm.registerEvents(new com.extantape.paulbunyan.tools.Peavey(axes, fallen, feller), this);
+            pm.registerEvents(new com.extantape.paulbunyan.tools.RecipeGuard(axes), this);
+            getServer().getScheduler().runTaskTimer(this, wedges::sweep, 20L * 60, 20L * 60);
             getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {
                 @org.bukkit.event.EventHandler
                 public void onJoin(org.bukkit.event.player.PlayerJoinEvent e) {
@@ -84,6 +94,9 @@ public final class PaulBunyan extends JavaPlugin {
                 .then(Commands.literal("pack").executes(this::pack))
                 .then(Commands.literal("give")
                     .then(Commands.argument("player", ArgumentTypes.player())
+                        .then(Commands.literal("tool")
+                            .then(Commands.argument("tool", StringArgumentType.word()).suggests((c, b) -> suggest(b, com.extantape.paulbunyan.tools.Tool.values()))
+                                .executes(this::giveTool)))
                         .then(Commands.argument("handle", StringArgumentType.word()).suggests((c, b) -> suggest(b, com.extantape.paulbunyan.tools.Handle.values()))
                             .then(Commands.argument("head", StringArgumentType.word()).suggests((c, b) -> suggest(b, com.extantape.paulbunyan.tools.Head.values()))
                                 .executes(this::give)))))
@@ -100,6 +113,7 @@ public final class PaulBunyan extends JavaPlugin {
     public void onDisable() {
         if (digSpeed != null) digSpeed.clearAll(getServer().getOnlinePlayers());
         if (perks != null) perks.clear();
+        if (wedges != null) wedges.returnAll();
         if (axes != null) axes.unregisterRecipes();
         if (feller != null) feller.finishAll();
         if (regrowth != null) regrowth.flush();
@@ -163,6 +177,20 @@ public final class PaulBunyan extends JavaPlugin {
         for (var left : player.getInventory().addItem(item).values()) player.getWorld().dropItem(player.getLocation(), left);
         sender.sendMessage(Component.text("[PaulBunyan] gave " + player.getName() + " a " + head.title().toLowerCase() + " axe with a "
             + handle.title().toLowerCase() + " handle.", NamedTextColor.GREEN));
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private int giveTool(CommandContext<CommandSourceStack> c) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        var sender = c.getSource().getSender();
+        var tool = com.extantape.paulbunyan.tools.Tool.byId(c.getArgument("tool", String.class));
+        if (axes == null || tool == null) {
+            sender.sendMessage(Component.text(axes == null ? "PaulBunyan's tools are off (tools.special-axes in config.yml)." : "No such tool. Press Tab for the list.", NamedTextColor.YELLOW));
+            return 0;
+        }
+        var player = c.getArgument("player", io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver.class)
+            .resolve(c.getSource()).getFirst();
+        for (var left : player.getInventory().addItem(axes.make(tool)).values()) player.getWorld().dropItem(player.getLocation(), left);
+        sender.sendMessage(Component.text("[PaulBunyan] gave " + player.getName() + " a " + tool.title.toLowerCase() + ".", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
 

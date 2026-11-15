@@ -611,6 +611,194 @@ if (want('tools')) {
     await release(p)
   }
 }
+if (want('moretools')) {
+  section('Wedge, crosscut saw and peavey')
+  const giveTool = async (b, name, tool) => {
+    await s.ask(`clear ${name}`, 200)
+    await s.ask(`paulbunyan give ${name} tool ${tool}`, 400)
+    await until(() => b.inventory.items().some(i => i.name === 'trial_key'), 5000)
+    await b.equip(b.inventory.items().find(i => i.name === 'trial_key'), 'hand')
+    await sleep(300)
+  }
+  /** Puts a bot at (x, y, z) looking at the centre of a block, with /tp so it works where bots can't turn (26.3). */
+  const aim = async (name, x, y, z, at) => {
+    const dx = at.x + 0.5 - x, dy = at.y + 0.5 - (y + 1.62), dz = at.z + 0.5 - z
+    const yaw = Math.atan2(-dx, dz) * 180 / Math.PI, pitch = -Math.atan2(dy, Math.hypot(dx, dz)) * 180 / Math.PI
+    await s.ask(`tp ${name} ${x} ${y} ${z} ${yaw.toFixed(1)} ${pitch.toFixed(1)}`, 500)
+  }
+  const fellBirch = async (p, label, want = 6) => {
+    let g
+    for (let i = 0; i < 4; i++) {
+      g = await grow(p, 'birch', 'birch_log')
+      if (g.ok && g.t.falls && g.t.logs >= want) break
+      await s.ask(`fill ${p.X - 3} ${Y} ${p.Z - 3} ${p.X + 3} ${Y + 12} ${p.Z + 3} minecraft:air`, 300)
+    }
+    if (!check(`${label}: a birch grew`, g.ok && g.t.falls && g.t.logs >= want, g.ok ? JSON.stringify(g.t) : g.why)) return null
+    return g
+  }
+  const lyingEast = (bx, by, z) => blocksNear(me, 'birch_log', new Vec3(bx, by, z), 30).filter(v => v.y === by && v.z === z && v.x > bx)
+
+  // Wedge: set in the trunk's east side, the tree falls west, though the bot faces north. The bots can only use a block
+  // where they can move.
+  if (PHYSICS) {
+    const p = await plot()
+    const g = await fellBirch(p, 'wedge', 5)
+    if (g) {
+      const bx = g.base.position.x, by = g.base.position.y
+      await s.ask(`tp Chopper ${bx + 0.5} ${by} ${p.Z + 2.5} 180 20`, 600)
+      await giveTool(me, 'Chopper', 'small_wedge')
+      await me.activateBlock(me.blockAt(new Vec3(bx, by + 1, p.Z)), new Vec3(1, 0, 0)).catch(e => e)
+      await sleep(600)
+      check('wedge: it is set, and leaves the hand', !me.inventory.items().some(i => i.name === 'trial_key'))
+      await axe()
+      await chop(me, me.blockAt(new Vec3(bx, by, p.Z)))
+      await waitFall()
+      const west = blocksNear(me, 'birch_log', p.c, 30).filter(v => v.y === by && v.x < bx).length
+      check('wedge: the tree falls straight away from it, west', west >= g.t.logs - 2, `${west} logs lie west of the stump`)
+      check('wedge: it comes back to the bot', me.inventory.items().some(i => i.name === 'trial_key'))
+    }
+    await release(p)
+  }
+
+  // Saw, alone: hold right-click on a fallen log and its section goes.
+  {
+    const p = await plot()
+    const g = await fellBirch(p, 'saw alone')
+    if (g) {
+      const bx = g.base.position.x, by = g.base.position.y
+      await axe()
+      await chop(me, g.base)
+      await waitFall()
+      const before = lyingEast(bx, by, p.Z).length
+      await giveTool(me, 'Chopper', 'crosscut_saw')
+      await aim('Chopper', bx - 0.5, by, p.Z + 0.5, new Vec3(bx + 3, by, p.Z))
+      me.activateItem()
+      await sleep(Math.round(3.6 * 1000))
+      me.deactivateItem()
+      await sleep(800)
+      const cut = before - lyingEast(bx, by, p.Z).length
+      check('saw alone: three seconds sawing cuts through a section of two to five logs', cut >= 2 && cut <= 5, `${cut} of ${before} cut`)
+      check('saw alone: the saw is still in hand, worn', me.heldItem?.name === 'trial_key')
+    }
+    await release(p)
+  }
+  // Saw, alone, on a standing tree: sawing twice fells it.
+  {
+    const p = await plot()
+    const g = await fellBirch(p, 'saw a standing tree', 5)
+    if (g) {
+      const bx = g.base.position.x, by = g.base.position.y
+      await giveTool(me, 'Chopper', 'crosscut_saw')
+      await aim('Chopper', bx - 1.5, by, p.Z + 0.5, new Vec3(bx, by, p.Z))
+      for (let i = 0; i < 2; i++) {
+        me.activateItem()
+        await sleep(3600)
+        me.deactivateItem()
+        await sleep(400)
+      }
+      await waitFall()
+      const down = blocksNear(me, 'birch_log', p.c, 30).filter(v => v.y === by && v.x !== bx).length
+      check('saw a standing tree: sawing twice fells it', down >= g.t.logs - 2, `${down} logs lying`)
+    }
+    await release(p)
+  }
+  // Saw, two sawyers on opposite sides, in rhythm: the whole trunk goes.
+  {
+    const p = await plot()
+    const g = await fellBirch(p, 'two sawyers')
+    if (g) {
+      const bx = g.base.position.x, by = g.base.position.y
+      await axe()
+      await chop(me, g.base)
+      await waitFall()
+      const lying = lyingEast(bx, by, p.Z).length
+      const partner = await bot('Partner', { physics: PHYSICS })
+      await giveTool(me, 'Chopper', 'crosscut_saw')
+      await giveTool(partner, 'Partner', 'crosscut_saw')
+      const log = new Vec3(bx + 3, by, p.Z)
+      await aim('Chopper', bx + 3.5, by, p.Z - 1.5, log)
+      await aim('Partner', bx + 3.5, by, p.Z + 2.5, log)
+      await sleep(800)
+      for (let i = 0; i < 10; i++) {
+        ;(i % 2 ? partner : me).swingArm('right')
+        await sleep(700)
+      }
+      await sleep(800)
+      const left = lyingEast(bx, by, p.Z).length
+      check('two sawyers: taking turns in rhythm, they saw through the whole trunk', left === 0 && lying >= 5, `${lying} lay, ${left} left`)
+      await quit(partner)
+    }
+    await release(p)
+  }
+
+  // Peavey: pushed from the north, a section rolls one block south. The bots can only use a block where they can move.
+  if (PHYSICS) {
+    const p = await plot()
+    const g = await fellBirch(p, 'peavey')
+    if (g) {
+      const bx = g.base.position.x, by = g.base.position.y
+      await axe()
+      await chop(me, g.base)
+      await waitFall()
+      const before = lyingEast(bx, by, p.Z).map(v => v.x)
+      await giveTool(me, 'Chopper', 'peavey')
+      await aim('Chopper', bx + 3.5, by, p.Z - 1.5, new Vec3(bx + 3, by, p.Z))
+      await me.activateBlock(me.blockAt(new Vec3(bx + 3, by, p.Z)), new Vec3(0, 0, -1)).catch(e => e)
+      await sleep(800)
+      const rolled = blocksNear(me, 'birch_log', p.c, 30).filter(v => v.y === by && v.z === p.Z + 1).map(v => v.x)
+      check('peavey: the section rolls one block south, away from the bot', rolled.length >= 2 && rolled.length <= 5 && rolled.includes(bx + 3), `rolled ${rolled.join(',')} of ${before.join(',')}`)
+    }
+    await release(p)
+  }
+
+  // Crafting: a small wedge from three iron ingots, and no vanilla recipe takes PaulBunyan's tools (two special axes
+  // don't repair into a plain iron axe).
+  if (PHYSICS) {
+    const p = await plot()
+    await s.ask('clear Chopper', 200)
+    await s.ask(`setblock ${p.X} ${Y} ${p.Z} minecraft:crafting_table`, 200)
+    await s.ask('give Chopper minecraft:iron_ingot 3', 300)
+    await until(() => inv(me).iron_ingot === 3, 5000)
+    const table = await me.openBlock(me.blockAt(new Vec3(p.X, Y, p.Z))).catch(e => e)
+    if (check('guard: the crafting table opens', table && !(table instanceof Error), String(table))) {
+      const slotOf = name => table.slots.findIndex((it, i) => i >= 10 && it?.name === name)
+      const free = () => table.slots.findIndex((it, i) => i >= 10 && !it)
+      const free2 = w => w.slots.findIndex((it, i) => i >= 10 && !it)
+      await me.clickWindow(slotOf('iron_ingot'), 0, 0)
+      for (const sl of [1, 4, 5]) await me.clickWindow(sl, 1, 0)
+      await sleep(600)
+      check('craft: three iron ingots in an L make a small felling wedge', table.slots[0]?.name === 'trial_key', table.slots[0]?.name)
+      for (const sl of [1, 4, 5]) { await me.clickWindow(sl, 0, 0); await me.clickWindow(free(), 0, 0) }
+      table.close()
+      await sleep(400)
+      await s.ask('paulbunyan give Chopper oak copper', 300)
+      await s.ask('paulbunyan give Chopper oak copper', 300)
+      await until(() => me.inventory.items().filter(i => i.name === 'iron_axe').length === 2, 5000)
+      const t2 = await me.openBlock(me.blockAt(new Vec3(p.X, Y, p.Z))).catch(e => e)
+      const axes = t2.slots.map((it, i) => (i >= 10 && it?.name === 'iron_axe' ? i : -1)).filter(i => i >= 0)
+      await me.clickWindow(axes[0], 0, 0); await me.clickWindow(1, 0, 0)
+      await me.clickWindow(axes[1], 0, 0); await me.clickWindow(2, 0, 0)
+      await sleep(600)
+      check('guard: two special axes don\'t repair into a plain iron axe', !t2.slots[0], t2.slots[0]?.name)
+      // The control: two plain iron axes do repair here, so the check above means something.
+      for (const sl of [1, 2]) { await me.clickWindow(sl, 0, 0); await me.clickWindow(free2(t2), 0, 0) }
+      t2.close()
+      await sleep(300)
+      await s.ask('clear Chopper', 200)
+      await s.ask('give Chopper minecraft:iron_axe', 200)
+      await s.ask('give Chopper minecraft:iron_axe', 300)
+      await until(() => me.inventory.items().filter(i => i.name === 'iron_axe').length === 2, 5000)
+      const t3 = await me.openBlock(me.blockAt(new Vec3(p.X, Y, p.Z))).catch(e => e)
+      const plain = t3.slots.map((it, i) => (i >= 10 && it?.name === 'iron_axe' ? i : -1)).filter(i => i >= 0)
+      await me.clickWindow(plain[0], 0, 0); await me.clickWindow(1, 0, 0)
+      await me.clickWindow(plain[1], 0, 0); await me.clickWindow(2, 0, 0)
+      await sleep(600)
+      check('guard: (control) two plain iron axes do repair', t3.slots[0]?.name === 'iron_axe', t3.slots[0]?.name)
+      t3.close()
+    }
+    await release(p)
+  }
+}
 if (want('items')) {
   section('Items mode')
   await config({ 'land-as': 'items' })

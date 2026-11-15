@@ -118,3 +118,21 @@ What PaulBunyan promises (README and `docs/decisions.md`), and what proves it. "
 - **Recipe-book discovery and the anvil repair:** vanilla behaviour on the item's components.
 - **How the axes look in hand, and the pack through Packmule:** real-client list. Packmule's own suite covers serving a pack.
 
+## 2026-11-15, 0.9.0 (wedge, crosscut saw, peavey)
+
+### Covered
+- **A wedge sends the tree straight away from it, fits only its trunk size, and always comes back:** unit (`away`, `fits`) and live (set in the east side, the tree falls west though the bot faces north, and the wedge returns), 26.1.2.
+- **The saw alone cuts a section of two to five logs, and fells a standing tree in two holds:** live, 26.1.2 and 26.3.
+- **Two sawyers on opposite sides, in rhythm, cut the whole trunk:** unit (`inRhythm`, `opposite`, including too quick, too slow, the same sawyer twice and the same side) and live with two bots, 26.1.2 and 26.3.
+- **The peavey rolls a section across its length, away from the pusher:** unit (`roll`) and live, 26.1.2.
+- **No PaulBunyan item goes into a vanilla recipe:** live, two special axes give no repair result, with two plain iron axes repairing as the control. This is the safety rule against losing an axe's components.
+- **A small wedge crafts from three iron ingots:** live.
+- **The pack draws every tool:** unit.
+- **Regression:** 26.1.2, 215 of 215; 26.3, 40 of 40.
+
+### Gaps skipped, with reasons
+- **The peavey's refusals (solid block, a living thing, a claim, a drop):** small branches of one method; the claim refusal uses the same protection check the fall uses, which the claims tests cover. Worth a live case when the peavey next changes.
+- **A wedge coming back after ten minutes or at shutdown:** the same give-back path the fall uses, which is covered.
+- **The large wedge on a 2x2 tree live:** the size rule is unit-tested, and the fall itself is the existing 2x2 felling.
+- **Real players keeping the saw's rhythm:** real-client list.
+

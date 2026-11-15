@@ -20,6 +20,7 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 - **Saplings along the fall.** Once the logs a tree left lying are all gone (chopped, picked up or cleared), up to three saplings of its kind (`regrowth.sapling-max`) sprout where it lay, on grass or dirt, spread apart, outside claims. One that hasn't grown after 30 in-game days (`regrowth.sapling-days`) is removed. Dark and pale oak sprout one square of four, or none, because a single sapling never grows. This only happens when the logs landed as blocks, not with `land-as: items`, and only for falls that landed while the plugin was running.
 - **Rewild.** If Rewild is installed, PaulBunyan tells it to keep the saplings it planted and the trees that grew from stumps or from those saplings. Rewild only listens once an admin respects PaulBunyan with `/rewild plugins`.
 - A sapling is planted where the tree stood, free, if one can grow there. Dark and pale oak get four saplings in a square, or none if any of the four spots won't take one, because a single sapling never grows. Spruce and jungle get four where the trunk was 2x2, otherwise one. Mangroves get a propagule on the nearest mud or dirt within ten blocks of the trunk, since their roots cover the ground right around it. Huge fungi get a fungus, only on their own nylium.
+- **Felling wedge, crosscut saw and peavey.** Set a wedge to choose where a tree falls, saw through sections alone or as a pair, and roll logs where you want them. See [Felling wedge, crosscut saw and peavey](#felling-wedge-crosscut-saw-and-peavey).
 - **Special axes.** Eleven heads and eleven handle woods, each head with a small perk. Any special axe bucks 3 fallen logs at a swing, and 5, faster, on its own wood. See [Special axes](#special-axes).
 - Sneak to chop one log the normal way.
 - When a real tree won't fall, the action bar says why: it touches a build, it's too big, part of it is in someone's claim, or your axe is too worn. Chopping a log cabin or a log fence says nothing, because those aren't trees.
@@ -51,9 +52,22 @@ Any special axe bucks 3 fallen logs with one swing: the one you break and the ne
 
 Every other number matches an iron axe: mining speed 6 and the same damage. Special axes fell trees like any axe.
 
+### Felling wedge, crosscut saw and peavey
+
+| Tool | Recipe (crafting table) | What it does |
+| --- | --- | --- |
+| Small felling wedge | three iron ingots in an L: two down the left, one beside the bottom | Right-click the side of a one-block trunk to set it. The tree then falls straight away from the wedge, whatever its lean. Stacks to 16. |
+| Large felling wedge | two small wedges side by side | The same, for 2x2 trunks. |
+| Crosscut saw | two sticks with a gap between them, over three iron ingots | Hold right-click for three seconds on a fallen log to saw through its section, up to five logs. On a standing trunk, saw twice to fell it. Two players with saws on opposite sides of one trunk can take turns swinging (left-click) instead: each stroke between a third of a second and a second and a half after the other's, and eight good strokes cut a whole fallen trunk, up to 32 logs, or fell a standing tree. 250 uses, one per log. |
+| Peavey | two iron ingots with a gap, over two sticks down the middle | Right-click a fallen log and its section, up to five logs, rolls one block sideways across its length, away from you. It won't roll into anything solid, onto a person or an animal, into a claim you can't build in, or off a drop of more than three blocks. A small step it drops down. 250 uses, one per roll. |
+
+A wedge comes back to whoever set it when the tree falls, when its log is broken some other way, after ten minutes, or when the server stops. Right-click the trunk with an empty hand to take it back sooner. Only one wedge goes in a tree, and only in a tree that would fall. Everything the saw and peavey move or cut is done as the player, so claims, CoreProtect and Prism see it as theirs.
+
+These tools are trial keys underneath, because that item has no recipe and no use of its own. A trial vault won't take one, and none of PaulBunyan's tools go into a vanilla recipe, so two special axes can't be combined into a plain iron axe.
+
 ### The resource pack
 
-The axes are drawn by PaulBunyan's own small resource pack: a handle and a head as two layers, so every pairing has a picture without 121 of them. It's 16x16 in the vanilla look, drawn for this plugin, and it only adds files under `paulbunyan`, so it sits alongside other packs. The plugin writes it to `plugins/PaulBunyan/pack/PaulBunyan-pack.zip` at startup, and each GitHub release attaches the same file. `/paulbunyan pack` shows the path and SHA-1. The same version always builds the same bytes.
+The axes and tools are drawn by PaulBunyan's own small resource pack. Each axe is a handle and a head as two layers, so every pairing has a picture without 121 of them. It's 16x16 in the vanilla look, drawn for this plugin, and it only adds files under `paulbunyan`, so it sits alongside other packs. The plugin writes it to `plugins/PaulBunyan/pack/PaulBunyan-pack.zip` at startup, and each GitHub release attaches the same file. `/paulbunyan pack` shows the path and SHA-1. The same version always builds the same bytes.
 
 Serve it with [Packmule](https://github.com/ExtantApe/Packmule): upload the zip unchanged, add it to Packmule's pack list and list it for every world where people use the axes. Without the pack, players see a missing-texture axe. A server that doesn't send it can set `tools.resource-pack: false`, and the axes look like plain iron axes, still with their names and descriptions.
 
@@ -155,6 +169,7 @@ GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're instal
 | `/paulbunyan check <x y z> [world]` | Says whether the log there would fall, and if not, why, naming the block that stopped it. Works from the console. |
 | `/paulbunyan reload` | Reloads the settings. The `tools` settings are read only at startup. |
 | `/paulbunyan give <player> <handle> <head>` | Gives a special axe, such as `give Alex birch gold`. Tab lists the woods and heads. |
+| `/paulbunyan give <player> tool <tool>` | Gives a `small_wedge`, `large_wedge`, `crosscut_saw` or `peavey`. |
 | `/paulbunyan pack` | Shows where the resource pack is and its SHA-1. |
 
 `/pb` is short for `/paulbunyan`.
@@ -184,6 +199,7 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 - that every log ends up somewhere: as blocks, as items or in a bot's inventory, adding up to the tree's log count
 - log cabins, log fences, placed logs with placed leaves, and a house around a real tree (none of them fall)
 - a torch on a trunk, two trees sharing leaves, and a stray placed log
+- the wedge sending a tree away from it and coming back, the saw cutting a section alone and felling a standing tree, two bots sawing a whole trunk in rhythm, the peavey rolling a section, a small wedge crafted, and two special axes refused as a vanilla repair while two plain ones repair
 - special axes: one crafted at a crafting table with clicks, its uses, speed, model and underwater speed, bucking 3 and 5 on its own wood, redstone sending bucked logs to the inventory, lapis experience, glowstone's glow appearing and going after 30 seconds, and amethyst's dust showing only while it's held
 - fallen logs: one takes about twice as long to break as a loose log with the same axe, the slowdown goes once the bot stops, and chopping one fells nothing else
 - landings on torches, slabs, signs, flowers, crops, chests (contents checked), water, lava, a cliff and the void, in both modes

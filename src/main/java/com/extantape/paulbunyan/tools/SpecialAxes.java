@@ -5,7 +5,6 @@ import io.papermc.paper.datacomponent.item.CustomModelData;
 import io.papermc.paper.datacomponent.item.ItemAttributeModifiers;
 import io.papermc.paper.datacomponent.item.ItemLore;
 import io.papermc.paper.datacomponent.item.Repairable;
-import io.papermc.paper.datacomponent.item.Tool;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
 import io.papermc.paper.registry.TypedKey;
@@ -39,12 +38,14 @@ public final class SpecialAxes {
     public static final String MODEL = "paulbunyan:axe";
     private final Plugin plugin;
     private final NamespacedKey key;
+    private final NamespacedKey toolKey;
     private final List<NamespacedKey> recipes = new ArrayList<>();
     private boolean usePack;
 
     public SpecialAxes(Plugin plugin, boolean usePack) {
         this.plugin = plugin;
         this.key = new NamespacedKey(plugin, "axe");
+        this.toolKey = new NamespacedKey(plugin, "tool");
         this.usePack = usePack;
     }
 
@@ -56,6 +57,36 @@ public final class SpecialAxes {
     public AxeKind of(ItemStack item) {
         if (item == null || item.getType() != Material.IRON_AXE) return null;
         return AxeKind.parse(item.getPersistentDataContainer().get(key, PersistentDataType.STRING));
+    }
+
+    /** Which of the other tools this is, or null. */
+    public Tool tool(ItemStack item) {
+        if (item == null || item.getType() != Material.TRIAL_KEY) return null;
+        return Tool.byId(item.getPersistentDataContainer().get(toolKey, PersistentDataType.STRING));
+    }
+
+    /** True for anything PaulBunyan made: a special axe or one of the other tools. */
+    public boolean ours(ItemStack item) {
+        return of(item) != null || tool(item) != null;
+    }
+
+    /**
+     * The wedges, saw and peavey are trial keys underneath: an item with no recipe and no use outside a trial vault,
+     * and a vault won't take a key with extra components.
+     */
+    @SuppressWarnings("UnstableApiUsage")
+    public ItemStack make(Tool t) {
+        ItemStack item = ItemStack.of(Material.TRIAL_KEY);
+        item.editPersistentDataContainer(pdc -> pdc.set(toolKey, PersistentDataType.STRING, t.id()));
+        item.setData(DataComponentTypes.ITEM_NAME, Component.text(t.title));
+        item.setData(DataComponentTypes.LORE, ItemLore.lore(List.of(plain(t.help, NamedTextColor.GRAY))));
+        item.setData(DataComponentTypes.MAX_STACK_SIZE, t.stack);
+        if (t.uses > 0) item.setData(DataComponentTypes.MAX_DAMAGE, t.uses);
+        if (t == Tool.CROSSCUT_SAW) item.setData(DataComponentTypes.CONSUMABLE, io.papermc.paper.datacomponent.item.Consumable.consumable()
+            .consumeSeconds(Saw.HOLD_SECONDS).animation(io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.BRUSH)
+            .sound(Key.key("minecraft:item.axe.strip")).hasConsumeParticles(false).build());
+        if (usePack) item.setData(DataComponentTypes.ITEM_MODEL, Key.key("paulbunyan:" + t.id()));
+        return item;
     }
 
     @SuppressWarnings("UnstableApiUsage")
@@ -70,12 +101,12 @@ public final class SpecialAxes {
             plain("Bucks " + AxeKind.BUCKS + " fallen logs at once, " + AxeKind.BUCKS_OWN_WOOD + " of " + kind.handle().title().toLowerCase() + ".", NamedTextColor.GRAY))));
         item.setData(DataComponentTypes.MAX_DAMAGE, head.uses);
         var blocks = RegistryAccess.registryAccess().getRegistry(RegistryKey.BLOCK);
-        Tool.Builder tool = Tool.tool().defaultMiningSpeed(1).damagePerBlock(1);
+        io.papermc.paper.datacomponent.item.Tool.Builder tool = io.papermc.paper.datacomponent.item.Tool.tool().defaultMiningSpeed(1).damagePerBlock(1);
         if (head.stemSpeed() != head.speed) {
-            tool.addRule(Tool.rule(blocks.getTag(BlockTypeTagKeys.CRIMSON_STEMS), head.stemSpeed(), TriState.TRUE));
-            tool.addRule(Tool.rule(blocks.getTag(BlockTypeTagKeys.WARPED_STEMS), head.stemSpeed(), TriState.TRUE));
+            tool.addRule(io.papermc.paper.datacomponent.item.Tool.rule(blocks.getTag(BlockTypeTagKeys.CRIMSON_STEMS), head.stemSpeed(), TriState.TRUE));
+            tool.addRule(io.papermc.paper.datacomponent.item.Tool.rule(blocks.getTag(BlockTypeTagKeys.WARPED_STEMS), head.stemSpeed(), TriState.TRUE));
         }
-        tool.addRule(Tool.rule(blocks.getTag(BlockTypeTagKeys.MINEABLE_AXE), head.speed, TriState.TRUE));
+        tool.addRule(io.papermc.paper.datacomponent.item.Tool.rule(blocks.getTag(BlockTypeTagKeys.MINEABLE_AXE), head.speed, TriState.TRUE));
         item.setData(DataComponentTypes.TOOL, tool.build());
         Material repair = Material.matchMaterial(head.material);
         if (repair != null) item.setData(DataComponentTypes.REPAIRABLE, Repairable.repairable(
@@ -119,7 +150,34 @@ public final class SpecialAxes {
             Bukkit.addRecipe(r, false);
             recipes.add(k);
         }
+        tool(Tool.SMALL_WEDGE, r -> {
+            r.shape("I ", "II");
+            r.setIngredient('I', Material.IRON_INGOT);
+        });
+        tool(Tool.LARGE_WEDGE, r -> {
+            r.shape("WW");
+            r.setIngredient('W', new org.bukkit.inventory.RecipeChoice.ExactChoice(make(Tool.SMALL_WEDGE)));
+        });
+        tool(Tool.CROSSCUT_SAW, r -> {
+            r.shape("S S", "III");
+            r.setIngredient('S', Material.STICK);
+            r.setIngredient('I', Material.IRON_INGOT);
+        });
+        tool(Tool.PEAVEY, r -> {
+            r.shape("I I", " S ", " S ");
+            r.setIngredient('S', Material.STICK);
+            r.setIngredient('I', Material.IRON_INGOT);
+        });
         Bukkit.updateRecipes();
+    }
+
+    private void tool(Tool t, java.util.function.Consumer<ShapedRecipe> shape) {
+        NamespacedKey k = new NamespacedKey(plugin, t.id());
+        ShapedRecipe r = new ShapedRecipe(k, make(t));
+        shape.accept(r);
+        Bukkit.removeRecipe(k, false);
+        Bukkit.addRecipe(r, false);
+        recipes.add(k);
     }
 
     public List<NamespacedKey> recipes() {

@@ -128,6 +128,25 @@ public final class Feller {
         return placed;
     }
 
+    public Protection protection() {
+        return protection;
+    }
+
+    public BlockLog blockLog() {
+        return blockLog;
+    }
+
+    private com.extantape.paulbunyan.tools.Wedges wedges;
+
+    public void wedges(com.extantape.paulbunyan.tools.Wedges wedges) {
+        this.wedges = wedges;
+    }
+
+    /** A block was broken some other way than a fall: a wedge in it comes back. */
+    public void wedgeGone(Block b) {
+        if (wedges != null) wedges.blockGone(b);
+    }
+
     public FallenLogs fallen() {
         return fallen;
     }
@@ -197,8 +216,12 @@ public final class Feller {
         for (Pos p : tree.logs()) before.put(p, block(world, p).getBlockData());
         for (Pos p : tree.logs()) busy.add(key(world, p));
         // Toward its heaviest side; a tree standing straight falls away from whoever cut it.
-        Direction dir = com.extantape.paulbunyan.fall.Lean.of(tree.logs(), tree.leaves(), tree.base(),
+        Direction leans = com.extantape.paulbunyan.fall.Lean.of(tree.logs(), tree.leaves(), tree.base(),
                 Direction.facing(player.getLocation().getYaw()));
+        // A felling wedge in the trunk sends it straight away from the wedge, whatever its lean.
+        List<Runnable> afterFall = new ArrayList<>();
+        Direction wedged = wedges == null ? null : wedges.take(world, whole, afterFall);
+        Direction dir = wedged != null ? wedged : leans;
         int extra = tree.logs().size() - 1;
         com.extantape.paulbunyan.tools.AxeKind kind = axeKind(axe);
         int warning = settings.warningTicks();
@@ -211,6 +234,7 @@ public final class Feller {
                 plugin.getLogger().log(Level.SEVERE, "A fall failed part-way through starting", e);
             } finally {
                 if (!started) for (Pos p : tree.logs()) busy.remove(key(world, p));
+                for (Runnable r : afterFall) r.run();
             }
         }, Math.max(1, warning));
         return Outcome.FELLS;
