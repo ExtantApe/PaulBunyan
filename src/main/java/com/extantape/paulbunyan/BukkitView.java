@@ -65,6 +65,14 @@ public final class BukkitView implements com.extantape.paulbunyan.tree.WorldView
         return block(p).getType().isAir();
     }
 
+    /** Something a falling tree strikes: anything solid. Grass, flowers and snow layers aren't. */
+    public boolean solid(Pos p) {
+        if (p.y() < world.getMinHeight()) return true;
+        if (p.y() >= world.getMaxHeight()) return false;
+        if (!world.isChunkLoaded(p.x() >> 4, p.z() >> 4)) return true;
+        return block(p).getType().isSolid();
+    }
+
     @Override
     public boolean isLog(Pos p) {
         if (p.y() < world.getMinHeight() || p.y() >= world.getMaxHeight()) return false;

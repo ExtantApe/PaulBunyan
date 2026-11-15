@@ -70,3 +70,16 @@ What PaulBunyan promises (README and `docs/decisions.md`), and what proves it. "
 ### Gaps skipped, with reasons
 - **26.2 bot run:** the change is pure placement math with no version-specific calls, and 26.1.2 and 26.3 both pass.
 - **How a bridge or a broken section looks in a real client:** real-client list.
+
+## 2026-11-15, 0.6.0 (terrain)
+
+### Covered
+- **A quarter turn is exactly the flat tip, in all four directions, and no turn leaves the tree standing:** unit `TerrainTest`.
+- **Flat ground is struck at flat; uphill before flat; over a drop past flat:** unit.
+- **Grass, flowers and the tree's own leaves don't stop a fall; a wall right beside it is struck at once and the tree lands flat:** unit.
+- **Uphill it lands short of where it would on flat ground, with every log accounted for:** live, 26.1.2 and 26.3.
+- **Regression:** bots on 26.1.2 (terrain, one-piece, landing, species, felling), 152 of 152; terrain and one-piece on 26.3, 20 of 20.
+
+### Gaps skipped, with reasons
+- **The past-flat animation over a drop:** visual only; the landing it leads to is covered by the one-piece edge check.
+- **26.2:** pure placement math, and 26.1.2 and 26.3 pass.

@@ -8,6 +8,7 @@ import com.extantape.paulbunyan.fall.Journal;
 import com.extantape.paulbunyan.fall.Landing;
 import com.extantape.paulbunyan.fall.OnePiece;
 import com.extantape.paulbunyan.fall.Replanter;
+import com.extantape.paulbunyan.fall.Terrain;
 import com.extantape.paulbunyan.hook.BlockLog;
 import com.extantape.paulbunyan.hook.Protection;
 import com.extantape.paulbunyan.regrow.Regrowth;
@@ -245,11 +246,34 @@ public final class Feller {
         }
 
         FallPlan plan = new FallPlan(dir, tree.minY(), tree.base());
+        // Uphill it strikes the slope before it's flat and lands short; over a drop it tips past flat. Worked out while
+        // the tree still stands, so the tree itself is ignored.
+        int endDegrees = 90;
+        java.util.function.Function<Pos, Pos> lands = plan::tipped;
+        if (settings.terrain()) {
+            Set<Pos> self = new HashSet<>(tree.logs());
+            self.addAll(tree.leaves());
+            List<Pos> moving = new ArrayList<>(tree.logs());
+            moving.remove(chopped);
+            BukkitView view = new BukkitView(world, placed, protection, player.getUniqueId());
+            int hit = Terrain.contact(view::solid, plan, moving, self, Terrain.MAX_DEGREES);
+            if (hit >= Terrain.SHORTEST && hit < Terrain.UPHILL_BELOW) {
+                double rad = Math.toRadians(hit);
+                lands = p -> plan.tippedAt(p, rad);
+                endDegrees = hit;
+            } else if (hit >= 90) {
+                endDegrees = hit;
+            }
+        }
         List<Journal.Log> logs = new ArrayList<>();
+        Set<Pos> taken = new HashSet<>();
         for (Pos p : tree.logs()) {
             if (p.equals(chopped)) continue;
             BlockData data = before.get(p);
-            logs.add(new Journal.Log(p, data.getAsString(), plan.tipped(p), tipped(data, dir).getAsString()));
+            // At a slant two logs can round to the same block; the second goes on top of the first.
+            Pos to = lands.apply(p);
+            while (!taken.add(to)) to = to.above();
+            logs.add(new Journal.Log(p, data.getAsString(), to, tipped(data, dir).getAsString()));
         }
         // A sapling only goes in when the tree was cut at the ground. A stump left behind grows back by itself (see Regrowth).
         boolean ground = groundCut(world, tree);
@@ -267,12 +291,12 @@ public final class Feller {
 
         boolean animate = settings.fallTicks() > 0;
         boolean animateLeaves = animate && logs.size() + tree.leaves().size() <= settings.maxAnimated();
-        Animation animation = new Animation(plan, settings.fallTicks());
+        Animation animation = new Animation(plan, settings.fallTicks(), endDegrees);
         List<LeafDrop> leafDrops = new ArrayList<>();
         for (Pos p : tree.leaves()) {
             Block b = block(world, p);
             BlockData data = b.getBlockData();
-            leafDrops.add(new LeafDrop(plan.tipped(p), b.getDrops()));
+            leafDrops.add(new LeafDrop(lands.apply(p), b.getDrops()));
             if (animateLeaves) animation.add(world, p, data);
             blockLog.removed(player.getName(), b.getLocation(), data);
             b.setType(Material.AIR, true);
