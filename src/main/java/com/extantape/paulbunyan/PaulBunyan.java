@@ -29,7 +29,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class PaulBunyan extends JavaPlugin {
     private Feller feller;
     private Regrowth regrowth;
-    private FallenLogSpeed fallenSpeed;
+    private DigSpeed digSpeed;
+    private com.extantape.paulbunyan.tools.SpecialAxes axes;
+    private com.extantape.paulbunyan.tools.Perks perks;
+    private java.nio.file.Path packFile;
+    private String packSha1;
 
     @Override
     public void onEnable() {
@@ -53,15 +57,36 @@ public final class PaulBunyan extends JavaPlugin {
         getServer().getPluginManager().registerEvents(keeps, this);
         keeps.start();
         getServer().getScheduler().runTaskTimer(this, regrowth::sweep, Regrowth.SWEEP_TICKS, Regrowth.SWEEP_TICKS);
-        getServer().getPluginManager().registerEvents(new ChopListener(feller), this);
-        fallenSpeed = new FallenLogSpeed(this, () -> feller.settings().fallenLogSpeed(), fallen);
-        getServer().getPluginManager().registerEvents(fallenSpeed, this);
+        getServer().getPluginManager().registerEvents(new ChopListener(feller, new com.extantape.paulbunyan.tools.Bucking(this, fallen)), this);
+        digSpeed = new DigSpeed(this, () -> feller.settings().fallenLogSpeed(), fallen, feller::axeKind);
+        getServer().getPluginManager().registerEvents(digSpeed, this);
+        writePack();
+        if (settings.specialAxes()) {
+            axes = new com.extantape.paulbunyan.tools.SpecialAxes(this, settings.usePack());
+            perks = new com.extantape.paulbunyan.tools.Perks(this);
+            feller.tools(axes, perks);
+            axes.registerRecipes();
+            getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {
+                @org.bukkit.event.EventHandler
+                public void onJoin(org.bukkit.event.player.PlayerJoinEvent e) {
+                    e.getPlayer().discoverRecipes(axes.recipes());
+                }
+            }, this);
+            getServer().getScheduler().runTaskTimer(this, new com.extantape.paulbunyan.tools.FallPreview(feller),
+                com.extantape.paulbunyan.tools.FallPreview.PERIOD, com.extantape.paulbunyan.tools.FallPreview.PERIOD);
+        }
         if (getConfig().getBoolean("gsit-sideways-logs-only", true)) com.extantape.paulbunyan.hook.SittingLogs.register(this, getLogger());
         getServer().getScheduler().runTaskTimer(this, feller::forgetOldFalls, 20L * 60, 20L * 60);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, e -> e.registrar().register(
             Commands.literal("paulbunyan")
                 .requires(src -> src.getSender().hasPermission("paulbunyan.admin"))
                 .then(Commands.literal("reload").executes(this::reload))
+                .then(Commands.literal("pack").executes(this::pack))
+                .then(Commands.literal("give")
+                    .then(Commands.argument("player", ArgumentTypes.player())
+                        .then(Commands.argument("handle", StringArgumentType.word()).suggests((c, b) -> suggest(b, com.extantape.paulbunyan.tools.Handle.values()))
+                            .then(Commands.argument("head", StringArgumentType.word()).suggests((c, b) -> suggest(b, com.extantape.paulbunyan.tools.Head.values()))
+                                .executes(this::give)))))
                 .then(Commands.literal("check")
                     .then(Commands.argument("pos", ArgumentTypes.blockPosition())
                         .executes(c -> check(c, null))
@@ -73,7 +98,9 @@ public final class PaulBunyan extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (fallenSpeed != null) fallenSpeed.clearAll(getServer().getOnlinePlayers());
+        if (digSpeed != null) digSpeed.clearAll(getServer().getOnlinePlayers());
+        if (perks != null) perks.clear();
+        if (axes != null) axes.unregisterRecipes();
         if (feller != null) feller.finishAll();
         if (regrowth != null) regrowth.flush();
     }
@@ -85,6 +112,57 @@ public final class PaulBunyan extends JavaPlugin {
         feller.reload(Settings.read(getConfig(), getLogger()), protection, blockLog);
         regrowth.reload(protection, blockLog);
         c.getSource().getSender().sendMessage(Component.text("PaulBunyan reloaded.", NamedTextColor.GREEN));
+        return Command.SINGLE_SUCCESS;
+    }
+
+    /** Writes the resource pack to plugins/PaulBunyan/pack, when it's changed, and notes its SHA-1. */
+    private void writePack() {
+        try {
+            var built = com.extantape.paulbunyan.tools.PackBuilder.build();
+            packFile = getDataFolder().toPath().resolve("pack").resolve("PaulBunyan-pack.zip");
+            java.nio.file.Files.createDirectories(packFile.getParent());
+            if (!java.nio.file.Files.exists(packFile) || !java.util.Arrays.equals(java.nio.file.Files.readAllBytes(packFile), built.zip()))
+                java.nio.file.Files.write(packFile, built.zip());
+            packSha1 = built.sha1();
+        } catch (IOException | RuntimeException e) {
+            getLogger().warning("Couldn't write the resource pack: " + e);
+        }
+    }
+
+    private int pack(CommandContext<CommandSourceStack> c) {
+        String msg = packSha1 == null ? "The resource pack couldn't be written; see the server log."
+            : "[PaulBunyan] pack: " + packFile + ", SHA-1 " + packSha1 + ". Serve it with Packmule (see the README).";
+        c.getSource().getSender().sendMessage(Component.text(msg, packSha1 == null ? NamedTextColor.YELLOW : NamedTextColor.GREEN));
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggest(
+            com.mojang.brigadier.suggestion.SuggestionsBuilder b, Enum<?>[] values) {
+        for (Enum<?> v : values) {
+            String id = v.name().toLowerCase(java.util.Locale.ROOT);
+            if (id.startsWith(b.getRemainingLowerCase())) b.suggest(id);
+        }
+        return b.buildFuture();
+    }
+
+    private int give(CommandContext<CommandSourceStack> c) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        var sender = c.getSource().getSender();
+        if (axes == null) {
+            sender.sendMessage(Component.text("Special axes are off (tools.special-axes in config.yml).", NamedTextColor.YELLOW));
+            return 0;
+        }
+        var handle = com.extantape.paulbunyan.tools.Handle.byId(c.getArgument("handle", String.class));
+        var head = com.extantape.paulbunyan.tools.Head.byId(c.getArgument("head", String.class));
+        if (handle == null || head == null) {
+            sender.sendMessage(Component.text("No such " + (handle == null ? "handle wood" : "head") + ". Press Tab for the list.", NamedTextColor.YELLOW));
+            return 0;
+        }
+        var player = c.getArgument("player", io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver.class)
+            .resolve(c.getSource()).getFirst();
+        var item = axes.make(new com.extantape.paulbunyan.tools.AxeKind(handle, head));
+        for (var left : player.getInventory().addItem(item).values()) player.getWorld().dropItem(player.getLocation(), left);
+        sender.sendMessage(Component.text("[PaulBunyan] gave " + player.getName() + " a " + head.title().toLowerCase() + " axe with a "
+            + handle.title().toLowerCase() + " handle.", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
 

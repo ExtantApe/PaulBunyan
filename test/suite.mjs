@@ -465,6 +465,152 @@ if (want('fallen')) {
   }
   await release(p)
 }
+if (want('tools')) {
+  section('Special axes: crafting, the item, bucking and the perks')
+  const giveAxe = async (handle, head) => {
+    await s.ask('clear Chopper', 200)
+    await s.ask(`paulbunyan give Chopper ${handle} ${head}`, 400)
+    await until(() => me.inventory.items().some(i => i.name === 'iron_axe'), 5000)
+    await me.equip(me.inventory.items().find(i => i.name === 'iron_axe'), 'hand')
+    await sleep(300)
+  }
+  const held = async () => (await s.ask('data get entity Chopper SelectedItem', 400)).join(' ')
+  // Crafting: the head material where an axe's iron goes, stripped logs where its sticks go, clicked in at a real
+  // crafting table. The server works out the result. On 26.3 the bots can't use a block, as with placing one.
+  if (PHYSICS) {
+    const p = await plot()
+    await s.ask('clear Chopper', 200)
+    await s.ask(`setblock ${p.X} ${Y} ${p.Z} minecraft:crafting_table`, 200)
+    await s.ask('give Chopper minecraft:copper_ingot 3', 200)
+    await s.ask('give Chopper minecraft:stripped_oak_log 2', 300)
+    await until(() => inv(me).copper_ingot === 3 && inv(me).stripped_oak_log === 2, 5000)
+    const table = await me.openBlock(me.blockAt(new Vec3(p.X, Y, p.Z))).catch(e => e)
+    if (check('craft: the crafting table opens', table && !(table instanceof Error), String(table))) {
+      const slotOf = name => table.slots.findIndex((it, i) => i >= 10 && it?.name === name)
+      const place = async (name, slots) => {
+        await me.clickWindow(slotOf(name), 0, 0) // pick up the stack
+        for (const sl of slots) await me.clickWindow(sl, 1, 0) // one into each grid slot
+        await me.clickWindow(table.slots.findIndex((it, i) => i >= 10 && !it), 0, 0) // put the rest back
+      }
+      await place('copper_ingot', [1, 2, 4])
+      await place('stripped_oak_log', [5, 8])
+      await sleep(600)
+      const result = table.slots[0]
+      check('craft: copper and stripped oak in an axe shape make a special axe', result?.name === 'iron_axe', result?.name)
+      if (result) {
+        await me.clickWindow(0, 0, 0)
+        await me.clickWindow(table.slots.findIndex((it, i) => i >= 10 && !it), 0, 0)
+      }
+      table.close()
+      await sleep(400)
+      const axe = me.inventory.items().find(i => i.name === 'iron_axe')
+      if (axe) await me.equip(axe, 'hand')
+      await sleep(300)
+      const h = await held()
+      check('craft: it is a copper axe with an oak handle', /oak\/copper/.test(h), h.slice(0, 300))
+    }
+    await release(p)
+  }
+  // The item: its own model, uses and speed.
+  await giveAxe('oak', 'obsidian')
+  let h = await held()
+  check('item: it is drawn with the pack', /paulbunyan:axe/.test(h) && /"obsidian"/.test(h), h.slice(0, 400))
+  check('item: obsidian has 500 uses', /max_damage"?: ?500/.test(h), h.slice(0, 400))
+  await giveAxe('oak', 'gold')
+  h = await held()
+  check('item: gold has 125 uses and speed 12', /max_damage"?: ?125/.test(h) && /speed: ?12/.test(h), h.slice(0, 600))
+  await giveAxe('oak', 'prismarine')
+  check('item: prismarine adds underwater mining speed', /submerged_mining_speed/.test(await held()))
+  const out = (await s.ask('paulbunyan pack', 400)).join(' ')
+  check('pack: written to the plugin folder with its SHA-1', /PaulBunyan-pack\.zip, SHA-1 [0-9a-f]{40}/.test(out)
+    && existsSync(path.join(dir, 'plugins/PaulBunyan/pack/PaulBunyan-pack.zip')), out)
+
+  // Bucking: break the first fallen log and the next ones along the trunk go too.
+  const buckCase = async (label, handle, head, want, extra = async () => {}) => {
+    const p = await plot()
+    let g
+    for (let i = 0; i < 4; i++) {
+      g = await grow(p, 'birch', 'birch_log')
+      if (g.ok && g.t.falls && g.t.logs >= 6) break
+      await s.ask(`fill ${p.X - 3} ${Y} ${p.Z - 3} ${p.X + 3} ${Y + 12} ${p.Z + 3} minecraft:air`, 300)
+    }
+    if (!check(`${label}: a birch of six logs or more grew`, g.ok && g.t.falls && g.t.logs >= 6, g.ok ? JSON.stringify(g.t) : g.why)) { await release(p); return }
+    const bx = g.base.position.x, by = g.base.position.y
+    await giveAxe(handle, head)
+    await chop(me, g.base)
+    await waitFall()
+    const before = blocksNear(me, 'birch_log', p.c, 30)
+    const lying = before.filter(v => v.y === by && v.z === p.Z && v.x > bx).length
+    const expect = Math.min(want, lying)
+    await s.ask('kill @e[type=item]', 400) // the log the felling chop broke, so only bucked logs can show up after
+    await sleep(300)
+    const logsBefore = inv(me).birch_log || 0
+    const t = me.blockAt(new Vec3(bx + 2, by, p.Z))
+    if (check(`${label}: the trunk lies east of the stump`, t?.name === 'birch_log', t?.name)) {
+      await chop(me, t)
+      await sleep(1500)
+      const gone = before.length - blocksNear(me, 'birch_log', p.c, 30).length
+      check(`${label}: one swing bucks ${expect}`, gone === expect, `${gone} went, ${lying} lay in line`)
+      await extra({ gone, logsBefore, p })
+    }
+    await release(p)
+  }
+  await buckCase('copper, oak handle, on birch', 'oak', 'copper', 3)
+  await buckCase('copper, birch handle, on its own wood', 'birch', 'copper', 5)
+  await buckCase('redstone', 'oak', 'redstone', 3, async ({ gone, logsBefore, p }) => {
+    await sleep(800)
+    const ground = (await s.count('@e[type=item]'))
+    check('redstone: the bucked logs went straight into the inventory', (inv(me).birch_log || 0) - logsBefore === gone && ground === 0,
+      JSON.stringify({ held: inv(me).birch_log, before: logsBefore, itemsOnGround: ground }))
+  })
+
+  // Lapis gives experience, glowstone outlines the landed logs, for half a minute.
+  for (const head of ['lapis', 'glowstone']) {
+    const p = await plot()
+    const g = await grow(p, 'birch', 'birch_log')
+    if (check(`${head}: a birch grew`, g.ok && g.t.falls, g.ok ? JSON.stringify(g.t) : g.why)) {
+      await giveAxe('oak', head)
+      const xp = me.experience?.points ?? 0
+      await chop(me, g.base)
+      if (head === 'lapis') {
+        await sleep(400)
+        const orbs = await s.count('@e[type=experience_orb]')
+        await sleep(2500)
+        check('lapis: felling a tree gives experience', orbs > 0 || (me.experience?.points ?? 0) > xp, `orbs ${orbs}, points ${xp} -> ${me.experience?.points}`)
+      } else {
+        await waitFall()
+        const lit = await s.count('@e[type=block_display,nbt={Glowing:1b}]')
+        check('glowstone: the landed logs glow', lit >= g.t.logs - 1, `${lit} glowing, ${g.t.logs} logs`)
+        await sleep(31000)
+        check('glowstone: the glow is gone after half a minute', (await s.count('@e[type=block_display,nbt={Glowing:1b}]')) === 0)
+      }
+    }
+    await release(p)
+  }
+
+  // Amethyst shows the fall before the cut, to the player holding it. The bots can only look around where they can move.
+  if (PHYSICS) {
+    const p = await plot()
+    const g = await grow(p, 'birch', 'birch_log')
+    if (check('amethyst: a birch grew', g.ok && g.t.falls, g.ok ? JSON.stringify(g.t) : g.why)) {
+      let dust = 0
+      const seen = () => { dust++ } // nothing else near the bot makes particles here
+      await giveAxe('oak', 'amethyst')
+      await me.lookAt(g.base.position.offset(0.5, 0.5, 0.5), true)
+      me.on('particle', seen)
+      await sleep(2000)
+      me.off('particle', seen)
+      check('amethyst: looking at a tree shows where it would fall', dust > 0, `${dust} particles`)
+      await giveAxe('oak', 'copper')
+      dust = 0
+      me.on('particle', seen)
+      await sleep(1500)
+      me.off('particle', seen)
+      check('amethyst: another axe shows nothing', dust === 0, `${dust} particles`)
+    }
+    await release(p)
+  }
+}
 if (want('items')) {
   section('Items mode')
   await config({ 'land-as': 'items' })

@@ -99,3 +99,22 @@ What PaulBunyan promises (README and `docs/decisions.md`), and what proves it. "
 - **How the crack looks at half speed in a real client:** real-client list.
 - **26.2:** no version-specific calls beyond the 26.1 attribute API, and 26.1.2 and 26.3 pass.
 
+## 2026-11-15, 0.8.0 (special axes)
+
+### Covered
+- **121 recipes, crafted the axe way with stripped logs:** live, a copper axe with an oak handle clicked together at a crafting table (26.1.2); unit, every handle and head pairing parses back.
+- **The numbers in each perk (iron 333 uses, obsidian 500, gold 125 at speed 12, quartz double on stems, prismarine underwater speed):** unit for the table; live for obsidian, gold and prismarine on the item itself.
+- **Bucking 3, and 5 on its own wood, along the trunk, stopping at a gap:** unit (`Bucking.line`) and live on 26.1.2 and 26.3.
+- **Redstone sends bucked logs to the inventory with nothing left on the ground:** live.
+- **Lapis gives experience; glowstone's outline appears and is gone after 30 seconds:** live.
+- **Amethyst's dust shows only while the amethyst axe is held:** live, 26.1.2 (the bots can only look around where they move).
+- **Fallen logs and own wood combine in the dig speed:** unit.
+- **The pack builds the same bytes every time, has every layer, 16x16 pictures, only its own namespace, and no pixel drawn by both layers:** unit; live, the file is written with its SHA-1.
+- **Regression:** 26.1.2, 198 of 198; 26.3, 45 of 46 (crafting, now gated like placing).
+
+### Gaps skipped, with reasons
+- **Emerald in a live run:** leaf drops are random, so a live check would be slow and flaky; the doubling is unit-tested.
+- **Quartz's speed on stems live:** it's a vanilla tool rule on the item, the same mechanism the obsidian and gold checks read.
+- **Recipe-book discovery and the anvil repair:** vanilla behaviour on the item's components.
+- **How the axes look in hand, and the pack through Packmule:** real-client list. Packmule's own suite covers serving a pack.
+

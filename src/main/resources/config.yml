@@ -17,6 +17,15 @@ terrain: true
 # percent of normal speed. 100 breaks them like any other log. Fallen logs never fall again when chopped.
 fallen-log-speed: 50
 
+# Special axes, crafted from a head material and a stripped log of the handle's wood, shaped like an axe with the
+# stripped logs where the sticks go. Each head has a perk, and any special axe bucks 3 fallen logs at a swing, 5 and
+# faster on its own handle's wood. Read at startup.
+tools:
+  special-axes: true
+  # Draw special axes with PaulBunyan's resource pack (plugins/PaulBunyan/pack/PaulBunyan-pack.zip, served by Packmule).
+  # false shows them as plain iron axes, for a server that doesn't send the pack.
+  resource-pack: true
+
 # A log that drops further than items-after blocks as it lands breaks into a log item, and further than sticks-after
 # splinters into two sticks. A log that lands inside the ground, on a slope it hit, is crushed into a log item.
 long-drop:

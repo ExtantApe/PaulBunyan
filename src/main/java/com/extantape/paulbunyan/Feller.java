@@ -60,6 +60,8 @@ public final class Feller {
     private Settings settings;
     private final PlacedBlocks placed;
     private final FallenLogs fallen;
+    private com.extantape.paulbunyan.tools.SpecialAxes axes;
+    private com.extantape.paulbunyan.tools.Perks perks;
     private Protection protection;
     private BlockLog blockLog;
     private final Journal journal;
@@ -81,10 +83,12 @@ public final class Feller {
         final List<LeafDrop> leafDrops;
         final Species species;
         final String sprout;
+        final com.extantape.paulbunyan.tools.AxeKind axe;
         BukkitTask task;
         int tick;
 
-        Active(Journal.Entry entry, World world, FallPlan plan, Animation animation, List<LeafDrop> leafDrops, Species species, String sprout) {
+        Active(Journal.Entry entry, World world, FallPlan plan, Animation animation, List<LeafDrop> leafDrops, Species species, String sprout,
+               com.extantape.paulbunyan.tools.AxeKind axe) {
             this.entry = entry;
             this.world = world;
             this.plan = plan;
@@ -92,6 +96,7 @@ public final class Feller {
             this.leafDrops = leafDrops;
             this.species = species;
             this.sprout = sprout;
+            this.axe = axe;
         }
     }
 
@@ -125,6 +130,16 @@ public final class Feller {
 
     public FallenLogs fallen() {
         return fallen;
+    }
+
+    /** Special axes and their perks, when they're on. */
+    public void tools(com.extantape.paulbunyan.tools.SpecialAxes axes, com.extantape.paulbunyan.tools.Perks perks) {
+        this.axes = axes;
+        this.perks = perks;
+    }
+
+    public com.extantape.paulbunyan.tools.AxeKind axeKind(ItemStack item) {
+        return axes == null ? null : axes.of(item);
     }
 
     static String key(World w, Pos p) {
@@ -185,12 +200,13 @@ public final class Feller {
         Direction dir = com.extantape.paulbunyan.fall.Lean.of(tree.logs(), tree.leaves(), tree.base(),
                 Direction.facing(player.getLocation().getYaw()));
         int extra = tree.logs().size() - 1;
+        com.extantape.paulbunyan.tools.AxeKind kind = axeKind(axe);
         int warning = settings.warningTicks();
         if (warning > 0) creak(world, cutAt, warning);
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             boolean started = false;
             try {
-                started = start(player, world, tree, choppedPos, before, dir, wear ? extra : 0);
+                started = start(player, world, tree, choppedPos, before, dir, wear ? extra : 0, kind);
             } catch (RuntimeException e) {
                 plugin.getLogger().log(Level.SEVERE, "A fall failed part-way through starting", e);
             } finally {
@@ -198,6 +214,21 @@ public final class Feller {
             }
         }, Math.max(1, warning));
         return Outcome.FELLS;
+    }
+
+    /** Where a tree would fall if {@code player} cut it at {@code log}: from its base, which way, and how far. */
+    public record Preview(List<Pos> base, Direction dir, int length) {}
+
+    /** For the amethyst axe. Null when chopping here wouldn't fell anything. */
+    public Preview preview(Player player, Block log) {
+        Scan scan = scan(log, player.getUniqueId());
+        if (!scan.fells()) return null;
+        Tree tree = aboveCut(scan.tree(), log.getY());
+        int top = Integer.MIN_VALUE;
+        for (Pos p : tree.logs()) top = Math.max(top, p.y());
+        for (Pos p : tree.leaves()) top = Math.max(top, p.y());
+        Direction dir = com.extantape.paulbunyan.fall.Lean.of(tree.logs(), tree.leaves(), tree.base(), Direction.facing(player.getLocation().getYaw()));
+        return new Preview(tree.base(), dir, top - log.getY() + 1);
     }
 
     /** The part of a tree from the cut up: logs and leaves at or above it. The logs at the cut height are its base. */
@@ -235,7 +266,8 @@ public final class Feller {
         return w.getBlockAt(p.x(), p.y(), p.z());
     }
 
-    private boolean start(Player player, World world, Tree tree, Pos chopped, Map<Pos, BlockData> before, Direction dir, int wear) {
+    private boolean start(Player player, World world, Tree tree, Pos chopped, Map<Pos, BlockData> before, Direction dir, int wear,
+                          com.extantape.paulbunyan.tools.AxeKind kind) {
         busy.remove(key(world, chopped));
         // The break went through, and nothing else changed the tree since. Something else may have filled the cut during
         // the warning (water flowing in, say); that doesn't stop the fall, only the log still being there does.
@@ -302,7 +334,9 @@ public final class Feller {
         for (Pos p : tree.leaves()) {
             Block b = block(world, p);
             BlockData data = b.getBlockData();
-            leafDrops.add(new LeafDrop(lands.apply(p), b.getDrops()));
+            Collection<ItemStack> drops = b.getDrops();
+            if (kind != null && kind.head() == com.extantape.paulbunyan.tools.Head.EMERALD) drops = com.extantape.paulbunyan.tools.Perks.moreFruit(drops);
+            leafDrops.add(new LeafDrop(lands.apply(p), drops));
             if (animateLeaves) animation.add(world, p, data);
             blockLog.removed(player.getName(), b.getLocation(), data);
             b.setType(Material.AIR, true);
@@ -320,7 +354,8 @@ public final class Feller {
         world.playSound(Sound.sound(Key.key("block.grass.break"), Sound.Source.BLOCK, 0.8f, 0.7f), stump.x() + 0.5, stump.y() + 3, stump.z() + 0.5);
 
         if (!ground) stumpLeft(world, tree);
-        Active a = new Active(entry, world, plan, animation, leafDrops, tree.species(), sproutSapling);
+        if (kind != null && kind.head() == com.extantape.paulbunyan.tools.Head.LAPIS && perks != null) perks.experience(world, stump, tree.logs().size());
+        Active a = new Active(entry, world, plan, animation, leafDrops, tree.species(), sproutSapling, kind);
         active.put(id, a);
         if (!animate) {
             land(a);
@@ -479,6 +514,8 @@ public final class Feller {
             landed.put(done.id(), done);
             for (Journal.Landed b : done.blocks()) landedAt.put(key(a.world, b.at()), done.id());
             regrowth.fallLanded(a.world, a.species, a.sprout, done.blocks().stream().map(Journal.Landed::at).toList());
+            if (a.axe != null && a.axe.head() == com.extantape.paulbunyan.tools.Head.GLOWSTONE && perks != null)
+                perks.glow(a.world, done.blocks().stream().map(Journal.Landed::at).toList());
         } finally {
             for (Journal.Log l : a.entry.logs()) busy.remove(key(a.world, l.origin()));
         }

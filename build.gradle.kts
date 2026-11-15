@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.extantape"
-version = "0.7.0"
+version = "0.8.0"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
@@ -28,6 +28,15 @@ dependencies {
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(25)
+}
+
+tasks.register<JavaExec>("pack") {
+    description = "Builds the resource pack the release attaches."
+    dependsOn("classes")
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.extantape.paulbunyan.tools.PackBuilder")
+    jvmArgs("-Djava.awt.headless=true")
+    args(layout.buildDirectory.file("libs/PaulBunyan-pack-${project.version}.zip").get().asFile.path)
 }
 
 tasks.processResources {
