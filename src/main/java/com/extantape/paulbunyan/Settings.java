@@ -23,6 +23,8 @@ public record Settings(
     com.extantape.paulbunyan.fall.Landing.Drops drops,
     boolean onePiece,
     boolean terrain,
+    /** How fast fallen logs break, as a fraction of normal (1 is normal speed). */
+    double fallenLogSpeed,
     Regrowth regrowth) {
 
     /** How stumps and fallen trees grow back. */
@@ -79,6 +81,7 @@ public record Settings(
             new com.extantape.paulbunyan.fall.Landing.Drops(itemsAfter, sticksAfter),
             c.getBoolean("one-piece", true),
             c.getBoolean("terrain", true),
+            clamp(c.getInt("fallen-log-speed", 50), 5, 100, "fallen-log-speed", log) / 100.0,
             new Regrowth(c.getBoolean("regrowth.stumps", true), clamp(c.getInt("regrowth.stump-days", 3), 1, 365, "regrowth.stump-days", log),
                 c.getBoolean("regrowth.saplings", true), clamp(c.getInt("regrowth.sapling-max", 3), 0, 8, "regrowth.sapling-max", log),
                 clamp(c.getInt("regrowth.sapling-days", 30), 1, 365, "regrowth.sapling-days", log),

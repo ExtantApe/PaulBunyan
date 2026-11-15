@@ -2,7 +2,7 @@
 
 A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tips over and the logs land on the ground. Cut at the ground and a sapling goes back in. Cut higher and the stump grows into a new wild tree of its own.
 
-**Status:** pre-release. It has passed a bot test suite on throwaway Paper 26.1.2, 26.2 and 26.3 servers, and 108 unit tests. The one-piece fall (0.5.0) and slopes (0.6.0) passed their bot checks on 26.1.2 and 26.3. Regrowth (0.4.0) passed the bot suite (315 checks) on 26.1.2 only, and has never run with Rewild installed. It hasn't been seen in a real game client yet, so how the fall looks, sounds and feels, and whether older clients connected through ViaVersion show it properly, are untested. See [Testing](#testing).
+**Status:** pre-release. It has passed a bot test suite on throwaway Paper 26.1.2, 26.2 and 26.3 servers, and 109 unit tests. The one-piece fall (0.5.0), slopes (0.6.0) and joined fallen logs (0.7.0) passed their bot checks on 26.1.2 and 26.3, though on 26.3 only the halved speed of fallen logs can be checked, not the break time. Regrowth (0.4.0) passed the bot suite (315 checks) on 26.1.2 only, and has never run with Rewild installed. It hasn't been seen in a real game client yet, so how the fall looks, sounds and feels, and whether older clients connected through ViaVersion show it properly, are untested. See [Testing](#testing).
 
 - Requires Paper 26.1 or newer, on Java 25. Tested on 26.1.2, 26.2 and 26.3. Java Edition only.
 - Replaces tree-felling plugins such as TreeAssist and LumberJack.
@@ -11,6 +11,7 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 
 - Chop any log of a natural tree with an axe. Everything below your cut stays standing as a stump, and the rest creaks for a second, then tips over toward its heaviest side, or away from you if it stands straight. It's drawn with block displays, so players need nothing installed. It cracks as it goes and thuds when it lands, with a puff of wood dust on each log.
 - The logs land on the ground as logs, ready to chop again. Set `land-as: items` to drop them as items instead.
+- **Fallen logs are joined.** Logs a fall left lying break at half speed (`fallen-log-speed`), with any tool, one log at a time, and chopping one never fells anything. Logs players place, and standing trees, break at normal speed. The plugin remembers which logs fell in the chunk's own data, so this lasts across restarts.
 - **It comes down in one piece.** On flat ground the trunk lands whole. Across a gap or a ravine it lies from one side to the other, like a bridge, and up to two logs can stick out past an edge. Whatever hangs further over a drop breaks off in sections of two to five logs, and each section falls on in one piece until it hits something. The breaks come out the same way if the server stops mid-fall. Set `one-piece: false` to land each log on its own, as before.
 - **Slopes.** Uphill, the tree strikes the slope before it's flat, lands short and its crown is crushed into the hill. Over a drop it tips past flat before it comes down. It always comes to rest flat on the block grid. Grass and flowers don't stop it. A tree leaning on a wall right beside it still lands flat, with what ends up inside the wall crushed. Set `terrain: false` to tip every tree to flat.
 - How a log lands depends on where it ends up. One that comes down on logs that landed first stacks on them. One that would end up inside the ground, where the tree hit a slope, is crushed into a log item on top. One that drops more than 4 blocks breaks into a log item, and more than 12 splinters into two sticks. Both cutoffs are settings under `long-drop`.
@@ -95,6 +96,7 @@ GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're instal
 | --- | --- | --- |
 | `land-as` | `blocks` | `blocks` to land logs as blocks, `items` to drop them. |
 | `terrain` | `true` | Uphill the tree lands short; over a drop it tips past flat. `false` tips every tree to flat. |
+| `fallen-log-speed` | `50` | How fast fallen logs break, as a percent of normal, from 5 to 100. `100` breaks them like any other log. |
 | `one-piece` | `true` | The tree comes down in one piece and breaks only past what it rests on. `false` lands each log on its own. |
 | `long-drop.items-after` | `4` | A log that drops further than this many blocks lands as a log item. |
 | `long-drop.sticks-after` | `12` | Further than this, it splinters into two sticks. |
@@ -148,6 +150,7 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 - that every log ends up somewhere: as blocks, as items or in a bot's inventory, adding up to the tree's log count
 - log cabins, log fences, placed logs with placed leaves, and a house around a real tree (none of them fall)
 - a torch on a trunk, two trees sharing leaves, and a stray placed log
+- fallen logs: one takes about twice as long to break as a loose log with the same axe, the slowdown goes once the bot stops, and chopping one fells nothing else
 - landings on torches, slabs, signs, flowers, crops, chests (contents checked), water, lava, a cliff and the void, in both modes
 - regrowth: a stump grows back into a tree after its time, a block in the trunk's way or a build touching it makes it wait and nothing is replaced, a world on `regrowth.disabled-worlds` and `regrowth.stumps: false` grow nothing, saplings sprout along a fall once its logs are cleared and the unwanted ones are removed after their days (an in-game day is shortened to 5 seconds for these)
 - GriefPrevention claims, a bot under the fall, a bot on top of the tree, and a boat

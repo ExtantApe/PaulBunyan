@@ -37,4 +37,11 @@ class SettingsTest {
         assertEquals(365, r.saplingDays());
         assertEquals(8, r.saplingMax());
     }
+
+    @Test void fallenLogsBreakAtHalfSpeedByDefaultWithinSaneBounds() throws Exception {
+        assertEquals(0.5, read("").fallenLogSpeed());
+        assertEquals(1.0, read("fallen-log-speed: 100\n").fallenLogSpeed());
+        assertEquals(0.05, read("fallen-log-speed: 0\n").fallenLogSpeed(), "never so slow a log can't be broken");
+        assertEquals(1.0, read("fallen-log-speed: 400\n").fallenLogSpeed(), "never faster than a loose log");
+    }
 }

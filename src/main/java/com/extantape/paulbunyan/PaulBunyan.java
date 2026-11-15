@@ -29,6 +29,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class PaulBunyan extends JavaPlugin {
     private Feller feller;
     private Regrowth regrowth;
+    private FallenLogSpeed fallenSpeed;
 
     @Override
     public void onEnable() {
@@ -42,16 +43,19 @@ public final class PaulBunyan extends JavaPlugin {
             return;
         }
         PlacedBlocks placed = new PlacedBlocks(this);
+        FallenLogs fallen = new FallenLogs(this);
         Protection protection = new Protection(getLogger());
         BlockLog blockLog = new BlockLog(getLogger());
         regrowth = new Regrowth(getDataFolder().toPath(), getLogger(), placed, () -> feller.settings(), protection, blockLog);
-        feller = new Feller(this, settings, placed, protection, blockLog, journal, regrowth);
+        feller = new Feller(this, settings, placed, fallen, protection, blockLog, journal, regrowth);
         feller.replay();
         RewildKeeps keeps = new RewildKeeps(this, w -> List.of(), w -> regrowth.keeps(w));
         getServer().getPluginManager().registerEvents(keeps, this);
         keeps.start();
         getServer().getScheduler().runTaskTimer(this, regrowth::sweep, Regrowth.SWEEP_TICKS, Regrowth.SWEEP_TICKS);
         getServer().getPluginManager().registerEvents(new ChopListener(feller), this);
+        fallenSpeed = new FallenLogSpeed(this, () -> feller.settings().fallenLogSpeed(), fallen);
+        getServer().getPluginManager().registerEvents(fallenSpeed, this);
         if (getConfig().getBoolean("gsit-sideways-logs-only", true)) com.extantape.paulbunyan.hook.SittingLogs.register(this, getLogger());
         getServer().getScheduler().runTaskTimer(this, feller::forgetOldFalls, 20L * 60, 20L * 60);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, e -> e.registrar().register(
@@ -69,6 +73,7 @@ public final class PaulBunyan extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (fallenSpeed != null) fallenSpeed.clearAll(getServer().getOnlinePlayers());
         if (feller != null) feller.finishAll();
         if (regrowth != null) regrowth.flush();
     }

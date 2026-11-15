@@ -59,6 +59,7 @@ public final class Feller {
     private final PaulBunyan plugin;
     private Settings settings;
     private final PlacedBlocks placed;
+    private final FallenLogs fallen;
     private Protection protection;
     private BlockLog blockLog;
     private final Journal journal;
@@ -96,11 +97,12 @@ public final class Feller {
 
     private record LeafDrop(Pos target, Collection<ItemStack> items) {}
 
-    public Feller(PaulBunyan plugin, Settings settings, PlacedBlocks placed, Protection protection, BlockLog blockLog,
-                  Journal journal, Regrowth regrowth) {
+    public Feller(PaulBunyan plugin, Settings settings, PlacedBlocks placed, FallenLogs fallen, Protection protection,
+                  BlockLog blockLog, Journal journal, Regrowth regrowth) {
         this.plugin = plugin;
         this.settings = settings;
         this.placed = placed;
+        this.fallen = fallen;
         this.protection = protection;
         this.blockLog = blockLog;
         this.journal = journal;
@@ -119,6 +121,10 @@ public final class Feller {
 
     public PlacedBlocks placed() {
         return placed;
+    }
+
+    public FallenLogs fallen() {
+        return fallen;
     }
 
     static String key(World w, Pos p) {
@@ -523,6 +529,7 @@ public final class Feller {
                     landedData.add(data);
                     Block b = view.block(r.at());
                     b.setBlockData(data, true);
+                    fallen.mark(b);
                     blockLog.placed(who, b.getLocation(), data);
                     blocks.add(new Journal.Landed(l.origin(), r.at(), data.getAsString()));
                 }

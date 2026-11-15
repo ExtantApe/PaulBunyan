@@ -421,6 +421,50 @@ if (want('terrain')) {
   }
   await release(p)
 }
+if (want('fallen')) {
+  section('Fallen logs are joined: they break slower and never fall again')
+  const p = await plot()
+  const g = await grow(p, 'birch', 'birch_log')
+  if (check('fallen: a birch grew', g.ok && g.t.falls && g.t.logs >= 5, g.ok ? JSON.stringify(g.t) : g.why)) {
+    const bx = g.base.position.x, by = g.base.position.y
+    await axe()
+    await fellAndAccount(p, g.base, 'birch_log', g.t, 'fallen')
+    const speed = async () => +((await s.ask('attribute Chopper minecraft:block_break_speed get', 300)).join(' ').match(/is (-?[\d.]+)/) || [])[1]
+    const at = dx => me.blockAt(new Vec3(bx + dx, by, p.Z))
+    // How long a log takes to break with a wooden axe, from the first swing until the server says it's gone (about 1.5 s
+    // for a loose log).
+    const timeToBreak = async (pos, during) => {
+      const t0 = Date.now()
+      const digging = me.dig(me.blockAt(pos), 'ignore').catch(e => e)
+      if (during) await during()
+      // The bot clears the block in its own view when its dig timer runs out, so ask the server whether it's gone.
+      const gone = async () => !/passed/i.test((await s.ask(`execute if block ${pos.x} ${pos.y} ${pos.z} #minecraft:logs`, 100)).join(' '))
+      while (!(await gone()) && Date.now() - t0 < 10000) {}
+      const ms = Date.now() - t0
+      await digging
+      return ms
+    }
+    await axe(me, 'Chopper', 'wooden_axe')
+    // A loose log, off to the side. Set with a command, so it works where the bots can't place blocks (26.3).
+    const loosePos = new Vec3(bx, by, p.Z - 3), fallenPos = new Vec3(bx + 3, by, p.Z)
+    await s.ask(`setblock ${loosePos.x} ${loosePos.y} ${loosePos.z} minecraft:oak_log`, 400)
+    if (check('fallen: a loose log stands to the side', me.blockAt(loosePos)?.name === 'oak_log', me.blockAt(loosePos)?.name)
+      && check('fallen: a log lies where the trunk landed', me.blockAt(fallenPos)?.name === 'birch_log', me.blockAt(fallenPos)?.name)) {
+      let looseSpeed, fallenSpeed
+      const loose = await timeToBreak(loosePos, async () => { await sleep(150); looseSpeed = await speed() })
+      check('fallen: a placed log digs at normal speed', looseSpeed === 1, String(looseSpeed))
+      const before = blocksNear(me, 'birch_log', p.c, 30).length
+      const fallen = await timeToBreak(fallenPos, async () => { await sleep(150); fallenSpeed = await speed() })
+      check('fallen: digging a fallen log halves the bot\'s break speed', fallenSpeed === 0.5, String(fallenSpeed))
+      // On 26.3 the bot hovers, so its own dig timer runs five times slow, longer than either log needs: there the server
+      // lets both go when the bot stops, and only the halved speed above can be checked.
+      if (PHYSICS) check('fallen: it takes about twice as long as a loose log', fallen > loose * 1.6 && fallen < loose * 2.6, `loose ${loose} ms, fallen ${fallen} ms`)
+      check('fallen: chopping a fallen log fells nothing else', blocksNear(me, 'birch_log', p.c, 30).length === before - 1)
+      check('fallen: the bot is back to normal speed afterwards', (await speed()) === 1)
+    }
+  }
+  await release(p)
+}
 if (want('items')) {
   section('Items mode')
   await config({ 'land-as': 'items' })

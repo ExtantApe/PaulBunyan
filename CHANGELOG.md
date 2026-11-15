@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+
+Real felling, sixth part (K597): fallen logs are joined.
+
+- Logs a fall leaves lying break at half speed with any tool, one log at a time. The player's client is told the slower speed, so the crack keeps pace with the server. Logs placed by players and logs of standing trees break at normal speed.
+- Chopping a fallen log never fells anything, even when what's left of the trunk looks like a tree.
+- Fallen logs are marked in the chunk's own data, so they stay joined after the fall journal is gone and after a restart. A fallen log someone picks up and places again is an ordinary log.
+- New setting `fallen-log-speed` (default `50`, a percent of normal). `100` breaks fallen logs like any other log.
+
+Tested: 109 unit tests, and bots on throwaway Paper servers: fallen logs, terrain, one-piece, landing, species, felling and players on 26.1.2 (172 of 172, and the final fallen-log check 14 of 14), and fallen logs, terrain and one-piece on 26.3 (30 of 31; the one miss was the break-time comparison, which can't work with 26.3's hovering bots and now runs on 26.1.2 and 26.2 only). Not tested: 26.2, and a real game client, so whether the crack looks right at half speed is unseen.
+
 ## 0.6.0
 
 Real felling, fifth part (K597): slopes.

@@ -83,3 +83,19 @@ What PaulBunyan promises (README and `docs/decisions.md`), and what proves it. "
 ### Gaps skipped, with reasons
 - **The past-flat animation over a drop:** visual only; the landing it leads to is covered by the one-piece edge check.
 - **26.2:** pure placement math, and 26.1.2 and 26.3 pass.
+
+## 2026-11-15, 0.7.0 (fallen logs are joined)
+
+### Covered
+- **A fallen log breaks at half speed; a loose log at normal speed:** live, by the bot's break speed while digging (26.1.2 and 26.3) and by time to break as the server sees it, about twice a loose log's with the same wooden axe (26.1.2).
+- **The slowdown comes off once the player stops:** live, after the break.
+- **Chopping a fallen log fells nothing else:** live, exactly one log goes.
+- **`fallen-log-speed` is clamped to 5..100, default 50:** unit `SettingsTest`.
+- **Regression:** bots on 26.1.2 (fallen, terrain, one-piece, landing, species, felling, players), 172 of 172; fallen, terrain and one-piece on 26.3, 30 of 31 (the break-time comparison, now limited to versions where bots stand on the ground).
+
+### Gaps skipped, with reasons
+- **The mark surviving a restart:** it's the same chunk-data storage placed logs have used since 0.1, already covered by the restart checks.
+- **Leaving mid-dig, a plugin stop mid-dig:** the change is transient and never saved with the player, so a stale slowdown can't outlive the session.
+- **How the crack looks at half speed in a real client:** real-client list.
+- **26.2:** no version-specific calls beyond the 26.1 attribute API, and 26.1.2 and 26.3 pass.
+
