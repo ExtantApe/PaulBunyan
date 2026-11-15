@@ -6,6 +6,7 @@ import com.extantape.paulbunyan.fall.Direction;
 import com.extantape.paulbunyan.fall.FallPlan;
 import com.extantape.paulbunyan.fall.Journal;
 import com.extantape.paulbunyan.fall.Landing;
+import com.extantape.paulbunyan.fall.OnePiece;
 import com.extantape.paulbunyan.fall.Replanter;
 import com.extantape.paulbunyan.hook.BlockLog;
 import com.extantape.paulbunyan.hook.Protection;
@@ -464,7 +465,19 @@ public final class Feller {
 
         BukkitView view = new BukkitView(world, placed, protection, e.player());
         List<Journal.Log> order = new ArrayList<>(e.logs());
-        order.sort(Comparator.<Journal.Log>comparingInt(l -> l.target().y())
+        if (onlyMissing != null) order.removeIf(l -> !onlyMissing.contains(l.origin()));
+        for (Journal.Log l : order) world.getChunkAt(l.target().x() >> 4, l.target().z() >> 4); // loads it if it was unloaded mid-fall
+        // The tree comes down in one piece and breaks only where it strikes something. Seeded by the fall, so a fall
+        // finished after a crash breaks the same way.
+        Map<Pos, OnePiece.Rest> rests = new HashMap<>();
+        if (settings.onePiece()) {
+            List<Pos> tipped = new ArrayList<>();
+            for (Journal.Log l : order) tipped.add(l.target());
+            rests = OnePiece.settle(view, tipped, alongX(order), e.id().getMostSignificantBits() ^ e.id().getLeastSignificantBits());
+        }
+        Map<Pos, OnePiece.Rest> rest = rests;
+        java.util.function.Function<Journal.Log, Pos> restAt = l -> rest.containsKey(l.target()) ? rest.get(l.target()).at() : l.target();
+        order.sort(Comparator.<Journal.Log>comparingInt(l -> restAt.apply(l).y())
             .thenComparingInt(l -> Math.abs(l.target().x() - l.origin().x()) + Math.abs(l.target().z() - l.origin().z())));
         List<Journal.Landed> blocks = new ArrayList<>(e.blocks());
         List<ItemStack> toPlayer = new ArrayList<>();
@@ -472,10 +485,13 @@ public final class Feller {
         List<Pos> landedAt = new ArrayList<>();
         List<BlockData> landedData = new ArrayList<>();
         for (Journal.Log l : order) {
-            if (onlyMissing != null && !onlyMissing.contains(l.origin())) continue;
-            world.getChunkAt(l.target().x() >> 4, l.target().z() >> 4); // loads it if it was unloaded mid-fall
             BlockData data = Bukkit.createBlockData(l.tippedData());
-            Landing.Result r = Landing.find(view, l.target(), minY, e.asItems(), settings.drops());
+            OnePiece.Rest piece = rest.get(l.target());
+            Landing.Result r = piece == null ? Landing.find(view, l.target(), minY, e.asItems(), settings.drops())
+                // Held over air (across a gap, or sticking out past an edge): it stays where its piece holds it. Anything
+                // else lands the usual way, which also deals with a flower or a slab where it lies.
+                : piece.held() && view.isAir(piece.at()) && view.isAir(piece.at().below()) ? Landing.held(view, piece.at(), e.asItems(), settings.drops(), piece.dropped())
+                : Landing.find(view, piece.at(), Math.min(minY, piece.at().y()), e.asItems(), settings.drops(), piece.dropped());
             ItemStack item = new ItemStack(data.getMaterial());
             switch (r.outcome()) {
                 case BLOCK -> {
@@ -524,6 +540,15 @@ public final class Feller {
             plugin.getLogger().log(Level.WARNING, "Couldn't update the fall journal", ex);
         }
         return done;
+    }
+
+    /** True when the logs moved along x as they tipped, so the tree fell east or west. */
+    private static boolean alongX(List<Journal.Log> logs) {
+        for (Journal.Log l : logs) {
+            if (l.target().x() != l.origin().x()) return true;
+            if (l.target().z() != l.origin().z()) return false;
+        }
+        return true;
     }
 
     /** A thud where the trunk lands, and wood dust on each landed log (the first 64). */

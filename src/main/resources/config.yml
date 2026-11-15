@@ -4,6 +4,11 @@
 # What fallen logs turn into when they land: "blocks" to chop up where they lie, or "items".
 land-as: blocks
 
+# The tree comes down in one piece. It lands whole on flat ground, and across a gap it lies from one side to the
+# other, with up to two logs sticking out past an edge. Anything hanging further over a drop breaks off in sections of
+# two to five logs. false lands each log on its own, as before.
+one-piece: true
+
 # A log that drops further than items-after blocks as it lands breaks into a log item, and further than sticks-after
 # splinters into two sticks. A log that lands inside the ground, on a slope it hit, is crushed into a log item.
 long-drop:

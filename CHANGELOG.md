@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+Real felling, fourth part (K597): the tree comes down in one piece.
+
+- On flat ground the trunk lands whole, as before. Across a gap or a ravine it lies from one side to the other, like a bridge, and up to two logs can stick out past an edge. Before, every log over air dropped on its own.
+- Whatever hangs further over a drop breaks off in sections of two to five logs, and each section falls on in one piece until it hits something. A section's fall counts toward `long-drop`.
+- The breaks are seeded by the fall, so a fall finished after the server stops mid-fall breaks the same way.
+- New setting `one-piece` (default `true`). `false` lands each log on its own, as in 0.4.0.
+
+Tested: 100 unit tests, and bot runs on throwaway Paper servers: species, landing, felling and players on 26.1.2 (156 of 156), and the new gap and edge checks plus landing on 26.3. Not tested: 26.2, and a real game client.
+
 ## 0.4.0
 
 Real felling, third part (K597): regrowth.

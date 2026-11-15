@@ -370,6 +370,41 @@ if (want('landing')) {
   section('Where logs land')
   for (const [name, make, keep] of LANDINGS) await landingCase(name, make, keep, false)
 }
+if (want('onepiece')) {
+  section('One piece: across a gap and over an edge')
+  // A birch has a straight trunk and no branches, and it falls away from the bot, east. Cut at the ground, its logs lie
+  // east from two blocks past the trunk.
+  {
+    const p = await plot()
+    const g = await grow(p, 'birch', 'birch_log')
+    if (check('gap: a birch grew', g.ok && g.t.falls && g.t.logs >= 5, g.ok ? JSON.stringify(g.t) : g.why)) {
+      const bx = g.base.position.x, by = g.base.position.y
+      await s.ask(`fill ${bx + 3} ${by - 4} ${p.Z - 1} ${bx + 4} ${by - 1} ${p.Z + 1} minecraft:air`, 300)
+      await axe()
+      await fellAndAccount(p, g.base, 'birch_log', g.t, 'gap')
+      const across = [3, 4].map(dx => me.blockAt(new Vec3(bx + dx, by, p.Z))?.name)
+      check('gap: the trunk lies across it in one piece', across.every(n => n === 'birch_log'), across.join(', '))
+      check('gap: nothing fell into it', blocksNear(me, 'birch_log', new Vec3(bx + 3.5, by - 3, p.Z), 1.6).filter(v => v.y < by).length === 0)
+    }
+    await release(p)
+  }
+  {
+    const p = await plot()
+    const g = await grow(p, 'birch', 'birch_log')
+    if (check('edge: a birch grew', g.ok && g.t.falls && g.t.logs >= 5, g.ok ? JSON.stringify(g.t) : g.why)) {
+      const bx = g.base.position.x, by = g.base.position.y
+      // a drop of three past two blocks out: short enough that broken sections land whole
+      await s.ask(`fill ${bx + 3} ${by - 3} ${p.Z - 1} ${bx + 16} ${by - 1} ${p.Z + 1} minecraft:air`, 300)
+      await axe()
+      await fellAndAccount(p, g.base, 'birch_log', g.t, 'edge')
+      const out = [2, 3, 4].map(dx => me.blockAt(new Vec3(bx + dx, by, p.Z))?.name)
+      check('edge: two logs stick out past the edge', out.every(n => n === 'birch_log'), out.join(', '))
+      check('edge: the rest broke off and fell', me.blockAt(new Vec3(bx + 5, by, p.Z))?.name !== 'birch_log'
+        && blocksNear(me, 'birch_log', new Vec3(bx + 6, by - 3, p.Z), 3).filter(v => v.y === by - 3).length >= 1)
+    }
+    await release(p)
+  }
+}
 if (want('items')) {
   section('Items mode')
   await config({ 'land-as': 'items' })
