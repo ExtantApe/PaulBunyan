@@ -52,11 +52,29 @@ public final class Landing {
 
     private Landing() {}
 
+    /**
+     * A log its piece holds where it is, even over air (see {@link OnePiece}). The usual rules still apply: never inside
+     * anything, never where the player can't build, the drop rules, and an item where a mob or player stands.
+     */
+    public static Result held(Ground g, Pos at, boolean asItems, Drops drops, int dropped) {
+        if (!g.isAir(at)) return new Result(Outcome.TO_PLAYER, null);
+        if (!g.mayBuild(at)) return new Result(Outcome.TO_PLAYER, null);
+        if (dropped > drops.sticksAfter()) return new Result(Outcome.SPLINTERED, at);
+        if (dropped > drops.itemsAfter()) return new Result(Outcome.ITEM, at);
+        if (!asItems && !g.occupied(at)) return new Result(Outcome.BLOCK, at);
+        return new Result(Outcome.ITEM, at);
+    }
+
     public static Result find(Ground g, Pos target, int floorY, boolean asItems) {
         return find(g, target, floorY, asItems, Drops.NEVER);
     }
 
     public static Result find(Ground g, Pos target, int floorY, boolean asItems, Drops drops) {
+        return find(g, target, floorY, asItems, drops, 0);
+    }
+
+    /** {@code dropped} is how far the log already fell as part of a piece (see {@link OnePiece}); it counts toward the drop. */
+    public static Result find(Ground g, Pos target, int floorY, boolean asItems, Drops drops, int dropped) {
         Pos p = new Pos(target.x(), Math.max(target.y(), floorY), target.z());
         int rise = 0;
         boolean crushed = false;
@@ -70,7 +88,7 @@ public final class Landing {
         if (p.y() <= g.worldMin()) return new Result(Outcome.TO_PLAYER, null);
         Pos below = p.below();
         if (g.destroysItems(below) || !g.mayBuild(p)) return new Result(Outcome.TO_PLAYER, null);
-        int dropped = top - p.y();
+        dropped += top - p.y();
         if (crushed) return new Result(Outcome.CRUSHED, p);
         if (dropped > drops.sticksAfter()) return new Result(Outcome.SPLINTERED, p);
         if (dropped > drops.itemsAfter()) return new Result(Outcome.ITEM, p);

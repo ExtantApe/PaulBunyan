@@ -55,3 +55,18 @@ What PaulBunyan promises (README and `docs/decisions.md`), and what proves it. "
 
 - **How the fall looks, sounds and feels**, and older clients through ViaVersion: real-client list.
 - **GriefPrevention's own `allowBreak` throwing at the moment of a fall.** The code catches it and says no, the same branch as the new unit test. A test would need a fake GriefPrevention plugin class, which costs more than it proves.
+
+## 2026-11-15, 0.5.0 (one-piece fall)
+
+### Covered
+- **On flat ground the tree lands whole where it tipped:** unit `OnePieceTest` and the existing bot species and landing checks.
+- **Across a gap it lies whole, like a bridge; past an edge two logs stick out and the rest breaks off:** unit (boulders, a single boulder, a ledge) and live (a birch across a two-block gap, and over a three-block drop), on 26.1.2 and 26.3.
+- **A broken-off section's drop counts toward long-drop:** unit (`theDropCountsInLanding`, the ledge case).
+- **A held log never goes inside the ground, a player or a claim the player can't build in:** unit (`aHeldLogStaysOverAirButStillFollowsTheRules`). The claim case is the safety rule, so it has its own assertion.
+- **No two logs end up in one block, and the same fall breaks the same way:** unit, over 50 seeds on a stepped drop with a branchy crown.
+- **Sections are two to five logs:** unit, trunks of 2 to 40.
+- **Regression:** bot run of species, landing, felling and players on 26.1.2, 156 of 156; landing on 26.3, 46 of 47 (one birch grew too short for the old check, since loosened and rerun, 15 of 15).
+
+### Gaps skipped, with reasons
+- **26.2 bot run:** the change is pure placement math with no version-specific calls, and 26.1.2 and 26.3 both pass.
+- **How a bridge or a broken section looks in a real client:** real-client list.
