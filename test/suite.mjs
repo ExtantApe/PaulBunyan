@@ -405,6 +405,22 @@ if (want('onepiece')) {
     await release(p)
   }
 }
+if (want('terrain')) {
+  section('Terrain: uphill it lands short')
+  const p = await plot()
+  const g = await grow(p, 'birch', 'birch_log')
+  if (check('uphill: a birch grew', g.ok && g.t.falls && g.t.logs >= 5, g.ok ? JSON.stringify(g.t) : g.why)) {
+    const bx = g.base.position.x, by = g.base.position.y
+    // a hill rising one block for every two east, from two blocks out
+    for (let dx = 2; dx <= 16; dx++) await s.ask(`fill ${bx + dx} ${by} ${p.Z - 2} ${bx + dx} ${by - 1 + Math.floor(dx / 2)} ${p.Z + 2} minecraft:stone`, 60)
+    await axe()
+    await fellAndAccount(p, g.base, 'birch_log', g.t, 'uphill')
+    const xs = blocksNear(me, 'birch_log', p.c, 30).map(v => v.x)
+    const far = xs.length ? Math.max(...xs) : bx
+    check('uphill: it lands short of where it would on flat ground', far < bx + g.t.logs, `farthest log at +${far - bx}, ${g.t.logs} logs`)
+  }
+  await release(p)
+}
 if (want('items')) {
   section('Items mode')
   await config({ 'land-as': 'items' })

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0
+
+Real felling, fifth part (K597): slopes.
+
+- Uphill, the tree strikes the slope before it's flat and lands short, with its crown crushed into the hill. Before, it always tipped to flat, so more of it was buried.
+- Over a drop, the animation tips past flat before the tree comes down. It still comes to rest flat on the block grid and falls in one piece.
+- Grass, flowers and other walk-through blocks don't stop a fall. A tree leaning on a wall right beside it lands flat, as before.
+- New setting `terrain` (default `true`). `false` tips every tree to flat, as in 0.5.0.
+
+Tested: 108 unit tests, and bots on throwaway Paper servers: terrain, one-piece, landing, species and felling on 26.1.2 (152 of 152), and terrain and one-piece on 26.3 (20 of 20). Not tested: 26.2, and a real game client.
+
 ## 0.5.0
 
 Real felling, fourth part (K597): the tree comes down in one piece.

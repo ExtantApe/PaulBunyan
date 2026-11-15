@@ -24,11 +24,18 @@ public final class Animation {
 
     private final FallPlan plan;
     private final int ticks;
+    private final float endAngle;
     private final List<Piece> pieces = new ArrayList<>();
 
     public Animation(FallPlan plan, int ticks) {
+        this(plan, ticks, 90);
+    }
+
+    /** {@code endDegrees}: how far it tips before it strikes the ground, short of flat uphill and past it over a drop. */
+    public Animation(FallPlan plan, int ticks, int endDegrees) {
         this.plan = plan;
         this.ticks = ticks;
+        this.endAngle = (float) Math.toRadians(endDegrees);
     }
 
     public void add(World world, Pos p, BlockData data) {
@@ -55,7 +62,7 @@ public final class Animation {
         if ((t - 1) % STEP != 0) return;
         int to = Math.min(ticks, t - 1 + STEP);
         float progress = (float) to / ticks;
-        float angle = (float) (Math.PI / 2 * progress * progress); // speeds up as it goes, like a real fall
+        float angle = endAngle * progress * progress; // speeds up as it goes, like a real fall
         for (Piece p : pieces) {
             if (!p.display().isValid()) continue;
             p.display().setInterpolationDelay(0);

@@ -22,6 +22,7 @@ public record Settings(
     java.util.Map<String, com.extantape.paulbunyan.fall.Danger.Level> fallDangerWorlds,
     com.extantape.paulbunyan.fall.Landing.Drops drops,
     boolean onePiece,
+    boolean terrain,
     Regrowth regrowth) {
 
     /** How stumps and fallen trees grow back. */
@@ -77,6 +78,7 @@ public record Settings(
             fallTicks, maxAnimated, disabled, warning, level, perWorld,
             new com.extantape.paulbunyan.fall.Landing.Drops(itemsAfter, sticksAfter),
             c.getBoolean("one-piece", true),
+            c.getBoolean("terrain", true),
             new Regrowth(c.getBoolean("regrowth.stumps", true), clamp(c.getInt("regrowth.stump-days", 3), 1, 365, "regrowth.stump-days", log),
                 c.getBoolean("regrowth.saplings", true), clamp(c.getInt("regrowth.sapling-max", 3), 0, 8, "regrowth.sapling-max", log),
                 clamp(c.getInt("regrowth.sapling-days", 30), 1, 365, "regrowth.sapling-days", log),

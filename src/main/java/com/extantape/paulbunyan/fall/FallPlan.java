@@ -37,6 +37,24 @@ public final class FallPlan {
         return dir.sign() > 0 ? front + 1 : front;
     }
 
+    /**
+     * Where {@code p} is once the tree has tipped {@code angle} radians toward its fall, rounded to the block its
+     * middle is in. At a quarter turn this is {@link #tipped}.
+     */
+    public Pos tippedAt(Pos p, double angle) {
+        int along = dir.alongX() ? p.x() : p.z();
+        double pivot = pivotAlong();
+        // In the fall's own frame: ahead of the pivot is positive, whichever way the tree falls.
+        double a = (along + 0.5 - pivot) * dir.sign();
+        double v = p.y() + 0.5 - minY;
+        double cos = Math.cos(angle), sin = Math.sin(angle);
+        double a2 = a * cos + v * sin;
+        double v2 = -a * sin + v * cos;
+        int newAlong = (int) Math.floor(pivot + dir.sign() * a2);
+        int newY = (int) Math.floor(minY + v2);
+        return dir.alongX() ? new Pos(newAlong, newY, p.z()) : new Pos(p.x(), newY, newAlong);
+    }
+
     /** Where {@code p} is once the tree lies flat. */
     public Pos tipped(Pos p) {
         int along = dir.alongX() ? p.x() : p.z();

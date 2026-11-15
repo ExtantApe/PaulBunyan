@@ -9,6 +9,10 @@ land-as: blocks
 # two to five logs. false lands each log on its own, as before.
 one-piece: true
 
+# Uphill, the tree strikes the slope before it's flat and lands short, with its crown crushed into the hill. Over a
+# drop it tips past flat before it lands. It always comes to rest flat on the block grid. false tips every tree to flat.
+terrain: true
+
 # A log that drops further than items-after blocks as it lands breaks into a log item, and further than sticks-after
 # splinters into two sticks. A log that lands inside the ground, on a slope it hit, is crushed into a log item.
 long-drop:
