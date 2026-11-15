@@ -26,8 +26,8 @@ jobs:
         run: |
           v=$(grep '^version = ' build.gradle.kts | cut -d'"' -f2)
           test "v$v" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME doesn't match version $v"; exit 1; }
-      - run: ./gradlew build
+      - run: ./gradlew build pack
       - name: Attach the jar to a GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" build/libs/PaulBunyan-*.jar --title "PaulBunyan $GITHUB_REF_NAME" --notes "See CHANGELOG.md."
+        run: gh release create "$GITHUB_REF_NAME" build/libs/PaulBunyan-*.jar build/libs/PaulBunyan-pack-*.zip --title "PaulBunyan $GITHUB_REF_NAME" --notes "See CHANGELOG.md."

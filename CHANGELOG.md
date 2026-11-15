@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0
+
+Real felling, seventh part (K597): special axes.
+
+- 121 special axes: eleven heads (copper, iron, gold, emerald, amethyst, quartz, lapis, redstone, glowstone, obsidian and prismarine) on eleven handle woods. Crafted like an axe, with stripped logs where the sticks go. Each head has one perk; see the README's table.
+- Any special axe bucks 3 fallen logs with one swing, and on its own handle's wood swings half again as fast and bucks 5. Sneak to break one.
+- PaulBunyan's own resource pack draws them, a handle and a head layered so every pairing works. It's written to `plugins/PaulBunyan/pack/` and attached to each release, for Packmule to serve. `tools.resource-pack: false` shows plain iron axes instead.
+- New commands: `/paulbunyan give <player> <handle> <head>` and `/paulbunyan pack`. New settings: `tools.special-axes` and `tools.resource-pack`.
+- Still to build in K597: the felling wedge, the crosscut saw and the peavey.
+
+Tested: 117 unit tests, and bots on throwaway Paper servers: tools, fallen logs, terrain, one-piece, landing, species, felling and players on 26.1.2 (198 of 198), and tools, fallen logs and one-piece on 26.3 (45 of 46; the miss was opening a crafting table, which 26.3's bots can't do, so the crafting check now runs on 26.1.2 and 26.2 only, like placing blocks). Emerald's doubling is unit-tested only. Not tested: 26.2, and a real game client, so nobody has seen the pack's pictures in hand.
+
 ## 0.7.0
 
 Real felling, sixth part (K597): fallen logs are joined.

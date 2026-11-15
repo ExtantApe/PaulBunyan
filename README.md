@@ -20,6 +20,7 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 - **Saplings along the fall.** Once the logs a tree left lying are all gone (chopped, picked up or cleared), up to three saplings of its kind (`regrowth.sapling-max`) sprout where it lay, on grass or dirt, spread apart, outside claims. One that hasn't grown after 30 in-game days (`regrowth.sapling-days`) is removed. Dark and pale oak sprout one square of four, or none, because a single sapling never grows. This only happens when the logs landed as blocks, not with `land-as: items`, and only for falls that landed while the plugin was running.
 - **Rewild.** If Rewild is installed, PaulBunyan tells it to keep the saplings it planted and the trees that grew from stumps or from those saplings. Rewild only listens once an admin respects PaulBunyan with `/rewild plugins`.
 - A sapling is planted where the tree stood, free, if one can grow there. Dark and pale oak get four saplings in a square, or none if any of the four spots won't take one, because a single sapling never grows. Spruce and jungle get four where the trunk was 2x2, otherwise one. Mangroves get a propagule on the nearest mud or dirt within ten blocks of the trunk, since their roots cover the ground right around it. Huge fungi get a fungus, only on their own nylium.
+- **Special axes.** Eleven heads and eleven handle woods, each head with a small perk. Any special axe bucks 3 fallen logs at a swing, and 5, faster, on its own wood. See [Special axes](#special-axes).
 - Sneak to chop one log the normal way.
 - When a real tree won't fall, the action bar says why: it touches a build, it's too big, part of it is in someone's claim, or your axe is too worn. Chopping a log cabin or a log fence says nothing, because those aren't trees.
 - The axe wears one point per log, with Unbreaking applied as usual. If the tree has more logs than the axe has uses left, it doesn't fall, and you get one log and a message.
@@ -27,6 +28,34 @@ A Paper plugin that makes trees fall. Chop a natural tree with an axe and it tip
 - Creative players chop one log, unless `creative-fells` is on.
 
 The owner's decisions behind these rules are in [docs/decisions.md](docs/decisions.md).
+
+## Special axes
+
+A special axe is built from a handle wood and a head. Craft it like an axe at a crafting table: the head material where the iron goes, and two stripped logs of the handle's wood where the sticks go. Every overworld and nether tree wood works as a handle: oak, spruce, birch, jungle, acacia, dark oak, mangrove, cherry, pale oak, crimson and warped. That makes 121 axes. The recipes show up in the recipe book. Nothing vanilla is changed, because no vanilla recipe uses stripped logs for an axe.
+
+Any special axe bucks 3 fallen logs with one swing: the one you break and the next ones along the same trunk. On a tree of its handle's wood it swings half again as fast and bucks 5. Sneak to break just the one. Each log costs a use, as usual. An axe repairs at an anvil with its head material.
+
+| Head | Made from | Uses | Perk |
+| --- | --- | --- | --- |
+| Copper | copper ingot | 250 | None: a plain, honest axe. |
+| Iron | iron ingot | 333 | Wears a quarter slower. |
+| Gold | gold ingot | 125 | Mines at speed 12, twice the others, and wears out twice as fast. |
+| Emerald | emerald | 250 | Trees it fells drop twice the saplings, propagules and apples. |
+| Amethyst | amethyst shard | 250 | Look at a tree while holding it and a line of purple dust, seen only by you, shows where it would fall. |
+| Quartz | nether quartz | 250 | Twice as fast on crimson and warped stems. |
+| Lapis | lapis lazuli | 250 | Felling a tree gives experience, about one point for every three logs. |
+| Redstone | redstone dust | 250 | Fallen logs it bucks go straight into your inventory. What doesn't fit drops as usual. |
+| Glowstone | glowstone dust | 250 | Logs it fells glow where they land for 30 seconds, outlined through walls, so none get lost in the undergrowth. |
+| Obsidian | obsidian | 500 | Wears half as fast. |
+| Prismarine | prismarine shard | 250 | Full speed underwater. |
+
+Every other number matches an iron axe: mining speed 6 and the same damage. Special axes fell trees like any axe.
+
+### The resource pack
+
+The axes are drawn by PaulBunyan's own small resource pack: a handle and a head as two layers, so every pairing has a picture without 121 of them. It's 16x16 in the vanilla look, drawn for this plugin, and it only adds files under `paulbunyan`, so it sits alongside other packs. The plugin writes it to `plugins/PaulBunyan/pack/PaulBunyan-pack.zip` at startup, and each GitHub release attaches the same file. `/paulbunyan pack` shows the path and SHA-1. The same version always builds the same bytes.
+
+Serve it with [Packmule](https://github.com/ExtantApe/Packmule): upload the zip unchanged, add it to Packmule's pack list and list it for every world where people use the axes. Without the pack, players see a missing-texture axe. A server that doesn't send it can set `tools.resource-pack: false`, and the axes look like plain iron axes, still with their names and descriptions.
 
 ## What counts as a natural tree
 
@@ -87,6 +116,7 @@ What can still go wrong after a crash, rarely:
 
 1. Put `PaulBunyan-<version>.jar` in `plugins/`.
 2. Start the server. Settings are in `plugins/PaulBunyan/config.yml`.
+3. For the special axes' pictures, serve `plugins/PaulBunyan/pack/PaulBunyan-pack.zip` with Packmule (see [The resource pack](#the-resource-pack)).
 
 GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're installed. None is needed. With GSit, players can sit only on logs lying on their side, never upright logs or stairs (`gsit-sideways-logs-only`; also list `#logs` in GSit's SitMaterials). Felled logs are recorded in CoreProtect and Prism under the player who chopped.
 
@@ -96,6 +126,8 @@ GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're instal
 | --- | --- | --- |
 | `land-as` | `blocks` | `blocks` to land logs as blocks, `items` to drop them. |
 | `terrain` | `true` | Uphill the tree lands short; over a drop it tips past flat. `false` tips every tree to flat. |
+| `tools.special-axes` | `true` | Special axes can be crafted. Read at startup. |
+| `tools.resource-pack` | `true` | Draw special axes with the pack. `false` shows them as plain iron axes. |
 | `fallen-log-speed` | `50` | How fast fallen logs break, as a percent of normal, from 5 to 100. `100` breaks them like any other log. |
 | `one-piece` | `true` | The tree comes down in one piece and breaks only past what it rests on. `false` lands each log on its own. |
 | `long-drop.items-after` | `4` | A log that drops further than this many blocks lands as a log item. |
@@ -121,7 +153,9 @@ GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're instal
 | Command | What it does |
 | --- | --- |
 | `/paulbunyan check <x y z> [world]` | Says whether the log there would fall, and if not, why, naming the block that stopped it. Works from the console. |
-| `/paulbunyan reload` | Reloads the settings. |
+| `/paulbunyan reload` | Reloads the settings. The `tools` settings are read only at startup. |
+| `/paulbunyan give <player> <handle> <head>` | Gives a special axe, such as `give Alex birch gold`. Tab lists the woods and heads. |
+| `/paulbunyan pack` | Shows where the resource pack is and its SHA-1. |
 
 `/pb` is short for `/paulbunyan`.
 
@@ -130,7 +164,7 @@ GriefPrevention, CoreProtect and Prism (4.4 or newer) are used if they're instal
 | Permission | Default | Allows |
 | --- | --- | --- |
 | `paulbunyan.fell` | everyone | Felling trees. Without it, logs break like vanilla. |
-| `paulbunyan.admin` | ops | `/paulbunyan check` and `reload`. |
+| `paulbunyan.admin` | ops | `/paulbunyan check`, `reload`, `give` and `pack`. |
 
 ## Building
 
@@ -150,6 +184,7 @@ The jar is `build/libs/PaulBunyan-<version>.jar`. Pushing a `v*` tag builds it a
 - that every log ends up somewhere: as blocks, as items or in a bot's inventory, adding up to the tree's log count
 - log cabins, log fences, placed logs with placed leaves, and a house around a real tree (none of them fall)
 - a torch on a trunk, two trees sharing leaves, and a stray placed log
+- special axes: one crafted at a crafting table with clicks, its uses, speed, model and underwater speed, bucking 3 and 5 on its own wood, redstone sending bucked logs to the inventory, lapis experience, glowstone's glow appearing and going after 30 seconds, and amethyst's dust showing only while it's held
 - fallen logs: one takes about twice as long to break as a loose log with the same axe, the slowdown goes once the bot stops, and chopping one fells nothing else
 - landings on torches, slabs, signs, flowers, crops, chests (contents checked), water, lava, a cliff and the void, in both modes
 - regrowth: a stump grows back into a tree after its time, a block in the trunk's way or a build touching it makes it wait and nothing is replaced, a world on `regrowth.disabled-worlds` and `regrowth.stumps: false` grow nothing, saplings sprout along a fall once its logs are cleared and the unwanted ones are removed after their days (an in-game day is shortened to 5 seconds for these)

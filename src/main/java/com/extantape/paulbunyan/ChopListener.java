@@ -24,9 +24,13 @@ import org.bukkit.inventory.ItemStack;
 /** Turns axe chops into falls, and keeps track of logs players place. */
 public final class ChopListener implements Listener {
     private final Feller feller;
+    private final com.extantape.paulbunyan.tools.Bucking bucking;
+    /** Fallen logs just broken with a redstone axe, waiting for their drops (the same tick). */
+    private final java.util.Set<String> toInventory = new java.util.HashSet<>();
 
-    public ChopListener(Feller feller) {
+    public ChopListener(Feller feller, com.extantape.paulbunyan.tools.Bucking bucking) {
         this.feller = feller;
+        this.bucking = bucking;
     }
 
     /**
@@ -43,7 +47,10 @@ public final class ChopListener implements Listener {
         if (wasPlaced) feller.placed().clear(block);
         // A fallen log lies where the tree came down. It's bucked one log at a time and never falls again.
         boolean wasFallen = species != null && feller.fallen().has(block);
-        if (wasFallen) feller.fallen().clear(block);
+        if (wasFallen) {
+            feller.fallen().clear(block);
+            bucked(event.getPlayer(), block, species);
+        }
         if (species == null || wasPlaced || wasFallen) return;
 
         Player player = event.getPlayer();
@@ -69,6 +76,29 @@ public final class ChopListener implements Listener {
         } else if (outcome == Feller.Outcome.TOO_BIG) {
             player.sendActionBar(Component.text("This tree is too big to fall in one go. Chopping it log by log.", NamedTextColor.YELLOW));
         }
+    }
+
+    /** A fallen log broken with a special axe: buck the next ones, and with redstone, send the drops to the inventory. */
+    private void bucked(Player player, Block block, Species species) {
+        if (bucking == null) return;
+        com.extantape.paulbunyan.tools.AxeKind kind = feller.axeKind(player.getInventory().getItemInMainHand());
+        if (kind == null) return;
+        if (toInventory.size() > 256) toInventory.clear(); // drops turned off by a game rule never come to claim theirs
+        if (kind.head() == com.extantape.paulbunyan.tools.Head.REDSTONE) toInventory.add(Feller.key(block.getWorld(), new com.extantape.paulbunyan.tree.Pos(block.getX(), block.getY(), block.getZ())));
+        if (!player.isSneaking() && !bucking.isBucking(player.getUniqueId())) bucking.buck(player, block, kind.bucks(species));
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDrop(org.bukkit.event.block.BlockDropItemEvent event) {
+        Block b = event.getBlock();
+        if (!toInventory.remove(Feller.key(b.getWorld(), new com.extantape.paulbunyan.tree.Pos(b.getX(), b.getY(), b.getZ())))) return;
+        Player p = event.getPlayer();
+        event.getItems().removeIf(item -> {
+            var left = p.getInventory().addItem(item.getItemStack());
+            if (left.isEmpty()) return true;
+            item.setItemStack(left.values().iterator().next());
+            return false;
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

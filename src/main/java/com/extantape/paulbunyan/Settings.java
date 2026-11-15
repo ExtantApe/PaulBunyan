@@ -25,6 +25,10 @@ public record Settings(
     boolean terrain,
     /** How fast fallen logs break, as a fraction of normal (1 is normal speed). */
     double fallenLogSpeed,
+    /** Special axes can be crafted (read at startup). */
+    boolean specialAxes,
+    /** Special axes use the pack's pictures; false shows them as plain iron axes. */
+    boolean usePack,
     Regrowth regrowth) {
 
     /** How stumps and fallen trees grow back. */
@@ -82,6 +86,7 @@ public record Settings(
             c.getBoolean("one-piece", true),
             c.getBoolean("terrain", true),
             clamp(c.getInt("fallen-log-speed", 50), 5, 100, "fallen-log-speed", log) / 100.0,
+            c.getBoolean("tools.special-axes", true), c.getBoolean("tools.resource-pack", true),
             new Regrowth(c.getBoolean("regrowth.stumps", true), clamp(c.getInt("regrowth.stump-days", 3), 1, 365, "regrowth.stump-days", log),
                 c.getBoolean("regrowth.saplings", true), clamp(c.getInt("regrowth.sapling-max", 3), 0, 8, "regrowth.sapling-max", log),
                 clamp(c.getInt("regrowth.sapling-days", 30), 1, 365, "regrowth.sapling-days", log),
