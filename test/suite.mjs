@@ -17,14 +17,17 @@ import { blocksNear, bot, check, DEFAULT_CONFIG, freshServer, inv, itemsNear, ja
 const MC = process.argv[2]
 if (!['26.1.2', '26.2', '26.3'].includes(MC)) throw new Error('usage: node suite.mjs <26.1.2|26.2|26.3> [only=a,b]')
 const ONLY = (process.argv.find(a => a.startsWith('only=')) || '').slice(5).split(',').filter(Boolean)
-const want = n => ONLY.length === 0 || ONLY.includes(n)
+const want = n => (ONLY.length === 0 && n !== 'gates') || ONLY.includes(n)
 const PHYSICS = MC !== '26.3'
 const Y = -60 // the flat world's grass is at -61
 
+// PB_TEST_WAYCAVE_JAR=<a Waycave jar> adds Waycave, whose gates have no claim API, for the gates section (only=gates):
+// PaulBunyan asks the plugins in ask-plugins with a test break, so a tree reaching into a gate's zone doesn't fall.
+const waycaveJar = process.env.PB_TEST_WAYCAVE_JAR
 const prismJar = process.env.PB_TEST_JARS && path.join(process.env.PB_TEST_JARS, 'Prism.jar')
 const prism = MC === '26.3' && existsSync(prismJar) // fetch-jars.mjs gets the Prism build listed for 26.3
 const dir = freshServer('suite-' + MC, { paper: jar(`paper-${MC}.jar`),
-  plugins: [jar('ViaVersion.jar'), jar('ViaBackwards.jar'), jar('GriefPrevention.jar'), jar('CoreProtect.jar'), ...(prism ? [prismJar] : [])] })
+  plugins: [jar('ViaVersion.jar'), jar('ViaBackwards.jar'), jar('GriefPrevention.jar'), jar('CoreProtect.jar'), ...(prism ? [prismJar] : []), ...(waycaveJar ? [waycaveJar] : [])] })
 // An in-game day is 100 ticks (5 s) here, so regrowth takes seconds. Only the regrowth section turns stumps on.
 const s = new Server({ dir, jvm: ['-Dpaulbunyan.test.day-ticks=100'] })
 const cfgFile = path.join(dir, 'plugins/PaulBunyan/config.yml')
@@ -1431,6 +1434,45 @@ if (want('regrowth')) {
     await config({ 'regrowth.stump-days': 1, 'regrowth.sapling-days': 30 })
     await config()
   }
+}
+
+// ---------- plugins without claims (Waycave's gates) ----------
+if (want('gates')) {
+  section('Plugins named in ask-plugins: Waycave\'s gates')
+  if (!waycaveJar) throw new Error('the gates section needs PB_TEST_WAYCAVE_JAR')
+  check('Waycave enabled', s.log.some(l => /Enabling Waycave/.test(l)))
+  // A gate facing north guards x +-reach and z -2..+2 around it. An oak four blocks south has its trunk and the block it
+  // is chopped at outside that, and some of its leaves inside it.
+  async function gateAndTree(id) {
+    const p = await plot()
+    const gx = p.X + 6, gz = p.Z
+    const made = (await s.ask(`gate create ${id} testworld testworld ${gx} ${Y} ${gz} north`, 1500)).join(' ')
+    const tree = await grow(p, 'oak', 'oak_log', { at: [gx, Y, gz + 3] })
+    const inZone = () => blocksNear(me, 'oak_leaves', new Vec3(gx, Y + 3, gz), 8).filter(v => v.z <= gz + 2 && v.z >= gz - 2).length
+    await s.ask(`tp Chopper ${gx - 1.5} ${Y} ${gz + 3.5} -90 10`, 600)
+    await s.ask('clear Chopper', 200); await axe()
+    return { p, gx, gz, made, tree, inZone, logsAt: () => blocksNear(me, 'oak_log', new Vec3(gx, Y, gz + 3), 8).length }
+  }
+  const g = await gateAndTree('pbtest-a')
+  check('the console made a gate', /Created pbtest-a/.test(g.made), g.made)
+  const leavesBefore = g.inZone(), logsBefore = g.logsAt()
+  check('the oak reaches into the gate\'s zone', g.tree.ok && g.tree.t.falls && leavesBefore > 0, `${leavesBefore} leaves in the zone; ${JSON.stringify(g.tree.t ?? g.tree.why)}`)
+  await chop(me, g.tree.base).catch(() => {})
+  await waitFall()
+  check('chopped at the trunk outside the zone, it breaks one log and doesn\'t fall', g.logsAt() === logsBefore - 1, `${logsBefore} logs before, ${g.logsAt()} after`)
+  check('every leaf in the gate\'s zone is still there', g.inZone() === leavesBefore, `${leavesBefore} before, ${g.inZone()} after`)
+  check('Waycave was asked', s.log.some(l => /Asking Waycave before felling/.test(l)))
+  await release(g.p)
+
+  // control: with ask-plugins empty, the same tree falls, through the gate's zone, which is what happened before
+  await config({ 'ask-plugins': '[]' })
+  const h = await gateAndTree('pbtest-b')
+  const hLeaves = h.inZone()
+  await chop(me, h.tree.base).catch(() => {})
+  await waitFall()
+  check('control: asking nobody, the same tree falls and takes leaves from the zone', h.tree.ok && hLeaves > 0 && h.inZone() < hLeaves, `${hLeaves} before, ${h.inZone()} after`)
+  await config()
+  await release(h.p)
 }
 
 const errs = s.exceptions()

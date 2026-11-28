@@ -1,5 +1,13 @@
 # Changelog
 
+
+## 0.10.0
+
+- **Trees ask Waycave too.** PaulBunyan asked only GriefPrevention before felling, then removed logs and leaves directly, so a tree whose crown reached into a Waycave gate's protected zone (or one whose logs landed there) could take blocks out of it. Waycave has no claim API. A new setting, `ask-plugins` (default `[Waycave]`), names plugins to ask as well: each gets a test break of every log and leaf the fall would remove, and a test place where logs would land, sent only to that plugin's own listeners, so loggers and skill plugins never count them. A no, a listener that fails or no player to ask means the tree is chopped log by log, and logs that would land there go to the player, as with a claim. A named plugin that isn't installed is skipped. A server whose config.yml has no `ask-plugins` line gets the default. The wedge, saw and peavey ask the same way.
+- The refusal now reads "Part of this tree is in a claim or a protected spot, so it won't fall." (wedge, saw and peavey lines say the same), since it may be a gate, not a claim. Player-facing wording, for review.
+- Tested: unit tests (`./gradlew clean build`, 13 in ProtectionTest: a named guard's no stops a fall and a landing, its yes lets it fall, an unnamed plugin never sees the test break, a failing guard and a missing player are a no, a named plugin that isn't installed is skipped, GriefPrevention still decides first). A bot section (`only=gates` with `PB_TEST_WAYCAVE_JAR`) places a real Waycave 0.9.1 gate and an oak whose leaves reach into its zone: chopped at the trunk outside the zone, only that log breaks and every leaf in the zone stays; in a control run with `ask-plugins: []` the same tree falls and takes the zone's leaves. It passed 10 of 10 on throwaway Paper 26.1.2, 26.2 and 26.3. Not tested: a fall landing into a gate's zone (unit tests only), the rest of the suite (nothing else changed), and a real game client. Regrowth (stumps and saplings) still asks GriefPrevention only.
+- **Upgrading:** nothing to change. A config.yml without `ask-plugins` uses the default, `[Waycave]`; add `ask-plugins: [Waycave]` yourself only if you want it written down.
+
 ## 0.9.0
 
 Real felling, last part (K597): the felling wedge, crosscut saw and peavey. This finishes the felling plan.

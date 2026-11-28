@@ -49,7 +49,7 @@ public final class PaulBunyan extends JavaPlugin {
         }
         PlacedBlocks placed = new PlacedBlocks(this);
         FallenLogs fallen = new FallenLogs(this);
-        Protection protection = new Protection(getLogger());
+        Protection protection = new Protection(getLogger(), getConfig().getStringList("ask-plugins"));
         BlockLog blockLog = new BlockLog(getLogger());
         regrowth = new Regrowth(getDataFolder().toPath(), getLogger(), placed, () -> feller.settings(), protection, blockLog);
         feller = new Feller(this, settings, placed, fallen, protection, blockLog, journal, regrowth);
@@ -121,7 +121,7 @@ public final class PaulBunyan extends JavaPlugin {
 
     private int reload(CommandContext<CommandSourceStack> c) {
         reloadConfig();
-        Protection protection = new Protection(getLogger());
+        Protection protection = new Protection(getLogger(), getConfig().getStringList("ask-plugins"));
         BlockLog blockLog = new BlockLog(getLogger());
         feller.reload(Settings.read(getConfig(), getLogger()), protection, blockLog);
         regrowth.reload(protection, blockLog);
