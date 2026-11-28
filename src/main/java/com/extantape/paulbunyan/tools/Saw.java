@@ -185,7 +185,7 @@ public final class Saw implements Listener {
             p.breakBlock(b);
             p.damageItemStack(EquipmentSlot.HAND, logs);
         } else if (o == Feller.Outcome.PROTECTED) {
-            p.sendActionBar(Component.text("Part of this tree is in a claim you can't build in.", NamedTextColor.YELLOW));
+            p.sendActionBar(Component.text("Part of this tree is in a claim or a protected spot, so it won't fall.", NamedTextColor.YELLOW));
         }
     }
 

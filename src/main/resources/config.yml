@@ -74,6 +74,12 @@ max-animated-blocks: 600
 # Worlds where trees never fall, by folder name.
 disabled-worlds: []
 
+# Before a tree falls, PaulBunyan asks GriefPrevention about every log and leaf, and where the logs land. It also asks
+# the plugins named here, by plugin name, for ones that guard places without claims, like Waycave's gates. Each gets a
+# test break (or place) of those blocks, sent only to that plugin, and if it says no the tree is chopped log by log.
+# A plugin that isn't installed is skipped. [] asks GriefPrevention alone.
+ask-plugins: [Waycave]
+
 # Ticks the tree creaks and leans before it goes, so anyone underneath can get clear. 20 is one second; 0 falls at once.
 warning-ticks: 20
 

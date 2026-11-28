@@ -95,7 +95,7 @@ public final class Peavey implements Listener {
         for (Block b : section) {
             Block to = b.getRelative(dx, 0, dz);
             if (!to.isReplaceable() || to.isLiquid()) return "Something's in the way.";
-            if (!feller.protection().mayBreak(p, b) || !feller.protection().mayBreak(p, to)) return "That's in a claim you can't build in.";
+            if (!feller.protection().mayBreak(p, b) || !feller.protection().mayBreak(p, to)) return "That's in a claim or a protected spot.";
             for (var e : to.getWorld().getNearbyEntities(BoundingBox.of(to), e -> e instanceof LivingEntity)) return "Someone's in the way.";
         }
         return null;

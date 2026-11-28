@@ -1,5 +1,12 @@
 # Changelog
 
+
+## Unreleased
+
+- **Trees ask Waycave too.** PaulBunyan asked only GriefPrevention before felling, then removed logs and leaves directly, so a tree whose crown reached into a Waycave gate's protected zone (or one whose logs landed there) could take blocks out of it. Waycave has no claim API. A new setting, `ask-plugins` (default `[Waycave]`), names plugins to ask as well: each gets a test break of every log and leaf the fall would remove, and a test place where logs would land, sent only to that plugin's own listeners, so loggers and skill plugins never count them. A no, a listener that fails or no player to ask means the tree is chopped log by log, and logs that would land there go to the player, as with a claim. A named plugin that isn't installed is skipped. A server whose config.yml has no `ask-plugins` line gets the default. The wedge, saw and peavey ask the same way.
+- The refusal now reads "Part of this tree is in a claim or a protected spot, so it won't fall." (wedge, saw and peavey lines say the same), since it may be a gate, not a claim. Player-facing wording, for review.
+- Tested: unit tests (`./gradlew clean build`, 13 in ProtectionTest: a named guard's no stops a fall and a landing, its yes lets it fall, an unnamed plugin never sees the test break, a failing guard and a missing player are a no, a named plugin that isn't installed is skipped, GriefPrevention still decides first). A bot section (`only=gates` with `PB_TEST_WAYCAVE_JAR`) places a real Waycave gate and an oak whose leaves reach into its zone, with a control run where `ask-plugins: []` lets the same tree fall. Not tested on a server: the bot section was written but not run (test servers had to give way to other work), so a real Waycave gate, 26.1.2, 26.2 and 26.3 are untested; regrowth (stumps and saplings) still asks GriefPrevention only.
+
 ## 0.9.0
 
 Real felling, last part (K597): the felling wedge, crosscut saw and peavey. This finishes the felling plan.

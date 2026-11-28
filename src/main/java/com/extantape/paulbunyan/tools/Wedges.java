@@ -116,7 +116,7 @@ public final class Wedges implements Listener {
             return;
         }
         if (!feller.protection().mayBreak(p, b)) {
-            p.sendActionBar(Component.text("This tree is in a claim you can't build in.", NamedTextColor.YELLOW));
+            p.sendActionBar(Component.text("This tree is in a claim or a protected spot.", NamedTextColor.YELLOW));
             return;
         }
         for (Set w : set.values())

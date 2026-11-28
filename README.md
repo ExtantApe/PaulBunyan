@@ -96,7 +96,7 @@ A tree cut above the ground leaves its stump standing, and no sapling is planted
 
 ## Where logs land
 
-A log never replaces a block. It comes to rest on the first block below it. If that block has a full top, the log becomes a block. On a torch, slab, sign, flower, crop, chest or water it drops as an item instead, and the block underneath is left alone. Logs that would land in lava or fire, fall into the void, end up buried under a steep slope, or land in a GriefPrevention claim the player can't build in go to the player's inventory, and anything that doesn't fit is dropped at their feet.
+A log never replaces a block. It comes to rest on the first block below it. If that block has a full top, the log becomes a block. On a torch, slab, sign, flower, crop, chest or water it drops as an item instead, and the block underneath is left alone. Logs that would land in lava or fire, fall into the void, end up buried under a steep slope, or land in a GriefPrevention claim the player can't build in, or in a place guarded by a plugin named in `ask-plugins` (Waycave's gates by default), go to the player's inventory, and anything that doesn't fit is dropped at their feet.
 
 The log you chop yourself drops as an item, the same as in vanilla, so lava right beside the trunk can catch it.
 
