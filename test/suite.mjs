@@ -1446,7 +1446,7 @@ if (want('gates')) {
   async function gateAndTree(id) {
     const p = await plot()
     const gx = p.X + 6, gz = p.Z
-    const made = (await s.ask(`gate create ${id} world world ${gx} ${Y} ${gz} north`, 1500)).join(' ')
+    const made = (await s.ask(`gate create ${id} testworld testworld ${gx} ${Y} ${gz} north`, 1500)).join(' ')
     const tree = await grow(p, 'oak', 'oak_log', { at: [gx, Y, gz + 3] })
     const inZone = () => blocksNear(me, 'oak_leaves', new Vec3(gx, Y + 3, gz), 8).filter(v => v.z <= gz + 2 && v.z >= gz - 2).length
     await s.ask(`tp Chopper ${gx - 1.5} ${Y} ${gz + 3.5} -90 10`, 600)
